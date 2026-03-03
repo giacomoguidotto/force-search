@@ -1,0 +1,34 @@
+excluded:
+  - .build
+  - DerivedData
+
+disabled_rules:
+  - trailing_comma
+
+line_length:
+  warning: 150
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+identifier_name:
+  min_length:
+    warning: 1
+  max_length:
+    warning: 60
+
+file_length:
+  warning: 600
+  error: 800
+
+type_body_length:
+  warning: 400
+  error: 600
+
+function_body_length:
+  warning: 80
+  error: 150
+
+cyclomatic_complexity:
+  warning: 25
+  error: 40

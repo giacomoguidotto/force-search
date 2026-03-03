@@ -298,7 +298,10 @@ final class SearchPanelController: NSObject {
             // Scale from 0.97 → 1.0
             if let contentView = panel.contentView {
                 contentView.wantsLayer = true
-                contentView.layer?.setAffineTransform(CGAffineTransform(scaleX: AnimationConstants.PanelShow.initialScale, y: AnimationConstants.PanelShow.initialScale))
+                let scale = AnimationConstants.PanelShow.initialScale
+                contentView.layer?.setAffineTransform(
+                    CGAffineTransform(scaleX: scale, y: scale)
+                )
             }
 
             NSAnimationContext.runAnimationGroup { context in

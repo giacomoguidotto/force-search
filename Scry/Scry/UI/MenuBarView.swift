@@ -66,9 +66,9 @@ struct MenuBarView: View {
 
             Divider()
 
-            Button(action: {
+            Button {
                 NSApplication.shared.terminate(nil)
-            }) {
+            } label: {
                 Label("Quit Scry", systemImage: "power")
             }
             .buttonStyle(.plain)

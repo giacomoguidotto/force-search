@@ -23,64 +23,37 @@ Replace macOS's useless "Look Up" (Force Touch / Siri Knowledge) with instant Go
 
 ## Getting started
 
-### 1. Set up the dev environment
-
-This project uses [devenv](https://devenv.sh) to manage development dependencies (xcodegen, gh, Swift toolchain).
-
-```bash
-# Install devenv if you don't have it
-# https://devenv.sh/getting-started/
-
-# Enter the dev shell
-devenv shell
-```
-
-### 2. Generate the Xcode project
-
-```bash
-cd Scry
-xcodegen generate
-```
-
-This creates `Scry.xcodeproj` from `project.yml`.
-
-### 3. Build and run
-
-**With Xcode:**
-
-```bash
-open Scry.xcodeproj
-```
-
-Then hit `Cmd+R` in Xcode.
+### 1. Build and run
 
 **With Swift Package Manager** (no Xcode.app required, just Command Line Tools):
 
 ```bash
 cd Scry
 swift build
-swift run Scry
+swift test
 ```
 
-**With the devenv helper scripts:**
+**With Xcode** (if installed):
 
 ```bash
-generate-project   # regenerate .xcodeproj from project.yml
-build               # build Debug configuration
-test                # run unit tests
-clean               # clean build artifacts
+cd Scry
+xcodegen generate   # regenerate .xcodeproj from project.yml
+open Scry.xcodeproj
 ```
 
-### 4. Grant permissions
+Then hit `Cmd+R` in Xcode.
+
+### 2. Grant permissions
 
 On first launch, Scry will show an onboarding window guiding you through:
 
-1. **Accessibility** — needed to read selected text from any app
-2. **Input Monitoring** — needed to detect force-click trackpad gestures
+1. **Disable Look Up** — macOS Look Up uses force-click by default, which conflicts with Scry. Change it to three-finger tap or disable it.
+2. **Accessibility** — needed to read selected text from any app
+3. **Input Monitoring** — needed to detect force-click trackpad gestures
 
 You may need to restart Scry after granting permissions.
 
-### 5. Use it
+### 3. Use it
 
 - **Select text** in any app, then **force-click** (press hard on trackpad) → search panel appears
 - Or press **Cmd+Shift+G** with text selected
@@ -115,17 +88,17 @@ Scry/
 
 **Adding a new search provider:** implement the `SearchProvider` protocol and register it in `ProviderRegistry`. Web-based providers just return a URL + optional CSS/JS injection. Native providers return `[SearchResult]` for AppKit rendering.
 
-## Building a release DMG
+## Linting
+
+The project uses [SwiftLint](https://github.com/realm/SwiftLint) for code style enforcement:
 
 ```bash
 cd Scry
-xcodegen generate
-xcodebuild -scheme Scry -configuration Release -derivedDataPath DerivedData build
-cd ..
-./Scripts/create-dmg.sh 1.0.0
+swiftlint          # lint all source files
+swiftlint --fix    # auto-fix where possible
 ```
 
-The app requires Developer ID signing and notarization for distribution (can't use App Store due to no-sandbox requirement).
+Configuration is in `Scry/.swiftlint.yml`.
 
 ## License
 

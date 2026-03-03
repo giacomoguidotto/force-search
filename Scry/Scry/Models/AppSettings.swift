@@ -188,8 +188,8 @@ final class AppSettings: ObservableObject {
     if d.object(forKey: Keys.showMenuBarIcon) != nil {
       showMenuBarIcon = d.bool(forKey: Keys.showMenuBarIcon)
     }
-    if let raw = d.string(forKey: Keys.menuBarIconStyle), let val = MenuBarIconStyle(rawValue: raw)
-    {
+    if let raw = d.string(forKey: Keys.menuBarIconStyle),
+       let val = MenuBarIconStyle(rawValue: raw) {
       menuBarIconStyle = val
     }
     if d.object(forKey: Keys.hasCompletedOnboarding) != nil {
@@ -235,8 +235,8 @@ final class AppSettings: ObservableObject {
     if let raw = dict[Keys.triggerMethod] as? String, let val = TriggerMethod(rawValue: raw) {
       triggerMethod = val
     }
-    if let kc = dict[Keys.hotKeyKeyCode] as? UInt32, let mod = dict[Keys.hotKeyModifiers] as? UInt32
-    {
+    if let kc = dict[Keys.hotKeyKeyCode] as? UInt32,
+       let mod = dict[Keys.hotKeyModifiers] as? UInt32 {
       hotKey = KeyCombo(keyCode: kc, modifiers: NSEvent.ModifierFlags.fromCarbon(mod))
     }
     if let val = dict[Keys.pressureSensitivity] as? Double { pressureSensitivity = val }

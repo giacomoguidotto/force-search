@@ -29,6 +29,7 @@ final class TextExtractorService {
         let focusResult = AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedValue)
         guard focusResult == .success else { return nil }
 
+        // swiftlint:disable:next force_cast
         let focusedElement = focusedValue as! AXUIElement
 
         // Get selected text
@@ -69,6 +70,7 @@ final class TextExtractorService {
         var offset = 0
         if rangeResult == .success, let axValue = rangeValue {
             var range = CFRange(location: 0, length: 0)
+            // swiftlint:disable:next force_cast
             AXValueGetValue(axValue as! AXValue, .cfRange, &range)
             offset = range.location
         }

@@ -64,10 +64,10 @@ struct OnboardingView: View {
             }
 
             // Primary action button
-            Button(action: {
+            Button {
                 settings.hasCompletedOnboarding = true
                 onComplete()
-            }) {
+            } label: {
                 Text(permissions.allPermissionsGranted ? "Get Started" : "Continue Anyway")
                     .frame(maxWidth: .infinity)
             }

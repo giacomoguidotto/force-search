@@ -91,7 +91,11 @@ extension SearchWebViewController: WKNavigationDelegate {
         delegate?.webViewDidFailLoading(error: error)
     }
 
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
         // If user clicks a link (not the initial search), open in external browser
         if navigationAction.navigationType == .linkActivated,
            let url = navigationAction.request.url {
