@@ -1,0 +1,81 @@
+name: ForceSearch
+options:
+  bundleIdPrefix: com.giacomo
+  deploymentTarget:
+    macOS: "13.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  ForceSearch:
+    type: application
+    platform: macOS
+    sources:
+      - path: ForceSearch
+        excludes:
+          - "**/*Tests*"
+    info:
+      path: ForceSearch/App/Info.plist
+      properties:
+        LSUIElement: true
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        NSHumanReadableCopyright: "Copyright © 2026 Giacomo. MIT License."
+        LSMinimumSystemVersion: "13.0"
+    entitlements:
+      path: ForceSearch/App/ForceSearch.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.giacomo.ForceSearch
+        INFOPLIST_FILE: ForceSearch/App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ForceSearch/App/ForceSearch.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        ENABLE_HARDENED_RUNTIME: false
+    dependencies: []
+    scheme:
+      testTargets:
+        - ForceSearchTests
+      environmentVariables:
+        - variable: FORCE_SEARCH_TESTING
+          value: "1"
+          isEnabled: true
+
+  ForceSearchTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: ForceSearchTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.giacomo.ForceSearchTests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ForceSearch.app/Contents/MacOS/ForceSearch"
+    dependencies:
+      - target: ForceSearch
+
+schemes:
+  ForceSearch:
+    build:
+      targets:
+        ForceSearch: all
+        ForceSearchTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ForceSearchTests
+    profile:
+      config: Release
+    archive:
+      config: Release
