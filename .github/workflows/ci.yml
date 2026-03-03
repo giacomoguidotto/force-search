@@ -32,24 +32,26 @@ jobs:
       - name: Build
         working-directory: ForceSearch
         run: |
+          set -o pipefail
           xcodebuild \
             -project ForceSearch.xcodeproj \
             -scheme ForceSearch \
             -configuration Debug \
             -destination 'platform=macOS' \
             build \
-            | xcpretty || true
+            | xcpretty
 
       - name: Run Tests
         working-directory: ForceSearch
         run: |
+          set -o pipefail
           xcodebuild \
             -project ForceSearch.xcodeproj \
             -scheme ForceSearch \
             -configuration Debug \
             -destination 'platform=macOS' \
             test \
-            | xcpretty || true
+            | xcpretty
 
   lint:
     name: Swift Lint
@@ -90,6 +92,7 @@ jobs:
       - name: Build Release
         working-directory: ForceSearch
         run: |
+          set -o pipefail
           xcodebuild \
             -project ForceSearch.xcodeproj \
             -scheme ForceSearch \
