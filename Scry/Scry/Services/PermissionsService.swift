@@ -23,17 +23,20 @@ final class PermissionsService: ObservableObject {
         inputMonitoringGranted = checkInputMonitoring()
     }
 
-    /// Opens System Settings to the Accessibility pane for this app.
+    /// Prompts for Accessibility access and opens the Settings pane.
     func requestAccessibility() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
+        // Also open the pane directly so the user can find & toggle the app
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
-    /// Requests Input Monitoring permission. This calls CGRequestListenEventAccess()
-    /// which registers the app in System Settings > Privacy > Input Monitoring and
-    /// shows a system prompt on first call.
+    /// Prompts for Input Monitoring access and opens the Settings pane.
     func requestInputMonitoring() {
+        // Register the app in the list (first call shows system prompt)
         CGRequestListenEventAccess()
+        // Open the pane directly so the user can find & toggle the app
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
     }
 
     /// Start polling permissions every 2 seconds (for onboarding flow).

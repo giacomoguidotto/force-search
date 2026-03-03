@@ -3,7 +3,6 @@ import SwiftUI
 struct OnboardingView: View {
     @ObservedObject var permissions = PermissionsService.shared
     @ObservedObject var settings = AppSettings.shared
-    @State private var currentStep = 0
     var onComplete: () -> Void
 
     var body: some View {
@@ -47,39 +46,29 @@ struct OnboardingView: View {
             Spacer()
 
             // Note
-            Text("You may need to restart Scry after granting permissions.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.bottom, 8)
+            if !permissions.allPermissionsGranted {
+                Text("You may need to restart Scry after granting permissions.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 8)
+            }
 
-            // Done button
+            // Primary action button
             Button(action: {
                 settings.hasCompletedOnboarding = true
                 onComplete()
             }) {
-                Text(permissions.allPermissionsGranted ? "Get Started" : "Skip for Now")
+                Text(permissions.allPermissionsGranted ? "Get Started" : "Continue Anyway")
                     .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
             .buttonStyle(.borderedProminent)
-            .disabled(!permissions.allPermissionsGranted && currentStep == 0)
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
-
-            // If not all granted, allow skip
-            if !permissions.allPermissionsGranted {
-                Button("Skip for Now") {
-                    settings.hasCompletedOnboarding = true
-                    onComplete()
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.secondary)
-                .font(.caption)
-                .padding(.bottom, 16)
-            }
         }
         .frame(width: 420, height: 480)
         .onAppear {
+            permissions.checkAll()
             permissions.startPolling()
         }
         .onDisappear {
@@ -119,7 +108,7 @@ struct OnboardingView: View {
                     .foregroundColor(.secondary)
 
                 if !granted {
-                    Button("Open System Settings") {
+                    Button("Grant Permission") {
                         action()
                     }
                     .controlSize(.small)
