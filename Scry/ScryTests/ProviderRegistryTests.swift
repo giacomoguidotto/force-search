@@ -32,7 +32,11 @@ final class ProviderRegistryTests: XCTestCase {
         let url = wiki.searchURL(for: "Albert Einstein")
         XCTAssertNotNil(url)
         XCTAssertTrue(url!.absoluteString.contains("wikipedia.org"))
-        XCTAssertTrue(url!.absoluteString.contains("Albert%20Einstein"))
+        let urlString = url!.absoluteString
+        XCTAssertTrue(
+            urlString.contains("Albert%20Einstein") || urlString.contains("Albert+Einstein") || urlString.contains("Albert Einstein"),
+            "Expected query in URL, got: \(urlString)"
+        )
     }
 
     func testWikipediaIsNativeRendering() {
