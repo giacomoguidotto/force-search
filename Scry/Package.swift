@@ -2,13 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "ForceSearch",
+    name: "Scry",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "ForceSearch",
-            path: "ForceSearch",
-            exclude: ["App/Info.plist", "App/ForceSearch.entitlements"],
+            name: "Scry",
+            path: "Scry",
+            exclude: ["App/Info.plist", "App/Scry.entitlements"],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("WebKit"),
@@ -20,9 +20,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "ForceSearchTests",
-            dependencies: ["ForceSearch"],
-            path: "ForceSearchTests"
+            name: "ScryTests",
+            dependencies: ["Scry"],
+            path: "ScryTests"
         ),
     ]
 )

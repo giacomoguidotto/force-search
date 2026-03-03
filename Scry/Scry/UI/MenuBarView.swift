@@ -69,7 +69,7 @@ struct MenuBarView: View {
             Button(action: {
                 NSApplication.shared.terminate(nil)
             }) {
-                Label("Quit ForceSearch", systemImage: "power")
+                Label("Quit Scry", systemImage: "power")
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 12)

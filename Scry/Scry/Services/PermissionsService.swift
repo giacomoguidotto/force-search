@@ -29,11 +29,11 @@ final class PermissionsService: ObservableObject {
         AXIsProcessTrustedWithOptions(options)
     }
 
-    /// Opens System Settings to the Input Monitoring pane.
-    func openInputMonitoringSettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
-            NSWorkspace.shared.open(url)
-        }
+    /// Requests Input Monitoring permission. This calls CGRequestListenEventAccess()
+    /// which registers the app in System Settings > Privacy > Input Monitoring and
+    /// shows a system prompt on first call.
+    func requestInputMonitoring() {
+        CGRequestListenEventAccess()
     }
 
     /// Start polling permissions every 2 seconds (for onboarding flow).

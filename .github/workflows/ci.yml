@@ -26,28 +26,28 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        working-directory: ForceSearch
+        working-directory: Scry
         run: xcodegen generate
 
       - name: Build
-        working-directory: ForceSearch
+        working-directory: Scry
         run: |
           set -o pipefail
           xcodebuild \
-            -project ForceSearch.xcodeproj \
-            -scheme ForceSearch \
+            -project Scry.xcodeproj \
+            -scheme Scry \
             -configuration Debug \
             -destination 'platform=macOS' \
             build \
             | xcpretty
 
       - name: Run Tests
-        working-directory: ForceSearch
+        working-directory: Scry
         run: |
           set -o pipefail
           xcodebuild \
-            -project ForceSearch.xcodeproj \
-            -scheme ForceSearch \
+            -project Scry.xcodeproj \
+            -scheme Scry \
             -configuration Debug \
             -destination 'platform=macOS' \
             test \
@@ -64,7 +64,7 @@ jobs:
       - name: Check Swift formatting
         run: |
           if command -v swiftformat &> /dev/null; then
-            swiftformat --lint ForceSearch/ForceSearch/ || echo "SwiftFormat lint warnings found"
+            swiftformat --lint Scry/Scry/ || echo "SwiftFormat lint warnings found"
           else
             echo "SwiftFormat not installed, skipping lint"
           fi
@@ -86,16 +86,16 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        working-directory: ForceSearch
+        working-directory: Scry
         run: xcodegen generate
 
       - name: Build Release
-        working-directory: ForceSearch
+        working-directory: Scry
         run: |
           set -o pipefail
           xcodebuild \
-            -project ForceSearch.xcodeproj \
-            -scheme ForceSearch \
+            -project Scry.xcodeproj \
+            -scheme Scry \
             -configuration Release \
             -derivedDataPath DerivedData \
             build
@@ -103,6 +103,6 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ForceSearch.app
-          path: ForceSearch/DerivedData/Build/Products/Release/ForceSearch.app
+          name: Scry.app
+          path: Scry/DerivedData/Build/Products/Release/Scry.app
           retention-days: 14

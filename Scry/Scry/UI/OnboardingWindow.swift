@@ -13,7 +13,7 @@ struct OnboardingView: View {
                 Image(systemName: "sparkle.magnifyingglass")
                     .font(.system(size: 48))
                     .foregroundColor(.accentColor)
-                Text("Welcome to ForceSearch")
+                Text("Welcome to Scry")
                     .font(.title.bold())
                 Text("Replace Look Up with instant search")
                     .font(.subheadline)
@@ -39,7 +39,7 @@ struct OnboardingView: View {
                     title: "Input Monitoring",
                     description: "Required to detect force-click gestures on the trackpad.",
                     granted: permissions.inputMonitoringGranted,
-                    action: { permissions.openInputMonitoringSettings() }
+                    action: { permissions.requestInputMonitoring() }
                 )
             }
             .padding(24)
@@ -47,7 +47,7 @@ struct OnboardingView: View {
             Spacer()
 
             // Note
-            Text("You may need to restart ForceSearch after granting permissions.")
+            Text("You may need to restart Scry after granting permissions.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .padding(.bottom, 8)
@@ -162,7 +162,7 @@ final class OnboardingWindowController {
             defer: false
         )
         win.contentView = hostingView
-        win.title = "ForceSearch Setup"
+        win.title = "Scry Setup"
         win.center()
         win.isReleasedWhenClosed = false
         win.makeKeyAndOrderFront(nil)

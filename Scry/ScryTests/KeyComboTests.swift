@@ -1,6 +1,6 @@
 import XCTest
 import Carbon
-@testable import ForceSearch
+@testable import Scry
 
 final class KeyComboTests: XCTestCase {
 

@@ -1,4 +1,4 @@
-# ForceSearch
+# Scry
 
 Replace macOS's useless "Look Up" (Force Touch / Siri Knowledge) with instant Google search in a native floating panel, right where you force-clicked.
 
@@ -38,18 +38,18 @@ devenv shell
 ### 2. Generate the Xcode project
 
 ```bash
-cd ForceSearch
+cd Scry
 xcodegen generate
 ```
 
-This creates `ForceSearch.xcodeproj` from `project.yml`.
+This creates `Scry.xcodeproj` from `project.yml`.
 
 ### 3. Build and run
 
 **With Xcode:**
 
 ```bash
-open ForceSearch.xcodeproj
+open Scry.xcodeproj
 ```
 
 Then hit `Cmd+R` in Xcode.
@@ -57,9 +57,9 @@ Then hit `Cmd+R` in Xcode.
 **With Swift Package Manager** (no Xcode.app required, just Command Line Tools):
 
 ```bash
-cd ForceSearch
+cd Scry
 swift build
-swift run ForceSearch
+swift run Scry
 ```
 
 **With the devenv helper scripts:**
@@ -73,12 +73,12 @@ clean               # clean build artifacts
 
 ### 4. Grant permissions
 
-On first launch, ForceSearch will show an onboarding window guiding you through:
+On first launch, Scry will show an onboarding window guiding you through:
 
 1. **Accessibility** — needed to read selected text from any app
 2. **Input Monitoring** — needed to detect force-click trackpad gestures
 
-You may need to restart ForceSearch after granting permissions.
+You may need to restart Scry after granting permissions.
 
 ### 5. Use it
 
@@ -104,7 +104,7 @@ Settings can be exported/imported as JSON via the `...` menu in Preferences.
 ## Architecture
 
 ```
-ForceSearch/
+Scry/
 ├── App/              # Entry point, AppDelegate coordinator
 ├── Services/         # EventTap, TextExtractor, HotKey, Permissions
 ├── Providers/        # SearchProvider protocol + Google, DuckDuckGo, Wikipedia
@@ -118,9 +118,9 @@ ForceSearch/
 ## Building a release DMG
 
 ```bash
-cd ForceSearch
+cd Scry
 xcodegen generate
-xcodebuild -scheme ForceSearch -configuration Release -derivedDataPath DerivedData build
+xcodebuild -scheme Scry -configuration Release -derivedDataPath DerivedData build
 cd ..
 ./Scripts/create-dmg.sh 1.0.0
 ```

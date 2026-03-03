@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-APP_NAME="ForceSearch"
+APP_NAME="Scry"
 VERSION="${1:-1.0.0}"
-BUILD_DIR="ForceSearch/DerivedData/Build/Products/Release"
+BUILD_DIR="Scry/DerivedData/Build/Products/Release"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 STAGING_DIR=$(mktemp -d)
 
@@ -13,7 +13,7 @@ echo "Creating DMG for ${APP_NAME} v${VERSION}..."
 if [ ! -d "${BUILD_DIR}/${APP_NAME}.app" ]; then
     echo "Error: ${BUILD_DIR}/${APP_NAME}.app not found."
     echo "Build the Release configuration first:"
-    echo "  cd ForceSearch && xcodebuild -scheme ForceSearch -configuration Release -derivedDataPath DerivedData build"
+    echo "  cd Scry && xcodebuild -scheme Scry -configuration Release -derivedDataPath DerivedData build"
     exit 1
 fi
 

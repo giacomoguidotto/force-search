@@ -1,5 +1,5 @@
 import XCTest
-@testable import ForceSearch
+@testable import Scry
 
 final class ConstantsTests: XCTestCase {
 

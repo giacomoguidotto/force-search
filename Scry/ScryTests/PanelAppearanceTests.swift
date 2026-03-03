@@ -1,6 +1,6 @@
 import XCTest
 import AppKit
-@testable import ForceSearch
+@testable import Scry
 
 final class PanelAppearanceTests: XCTestCase {
 

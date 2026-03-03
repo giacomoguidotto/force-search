@@ -11,24 +11,24 @@
 
   scripts.generate-project.exec = ''
     echo "Generating Xcode project..."
-    cd $DEVENV_ROOT/ForceSearch && xcodegen generate
+    cd $DEVENV_ROOT/Scry && xcodegen generate
   '';
 
   scripts.build.exec = ''
-    cd $DEVENV_ROOT/ForceSearch && xcodebuild -project ForceSearch.xcodeproj -scheme ForceSearch -configuration Debug build
+    cd $DEVENV_ROOT/Scry && xcodebuild -project Scry.xcodeproj -scheme Scry -configuration Debug build
   '';
 
   scripts.test.exec = ''
-    cd $DEVENV_ROOT/ForceSearch && xcodebuild -project ForceSearch.xcodeproj -scheme ForceSearch -configuration Debug test
+    cd $DEVENV_ROOT/Scry && xcodebuild -project Scry.xcodeproj -scheme Scry -configuration Debug test
   '';
 
   scripts.clean.exec = ''
-    cd $DEVENV_ROOT/ForceSearch && xcodebuild -project ForceSearch.xcodeproj -scheme ForceSearch clean
-    rm -rf $DEVENV_ROOT/ForceSearch/DerivedData
+    cd $DEVENV_ROOT/Scry && xcodebuild -project Scry.xcodeproj -scheme Scry clean
+    rm -rf $DEVENV_ROOT/Scry/DerivedData
   '';
 
   enterShell = ''
-    echo "ForceSearch dev environment ready"
+    echo "Scry dev environment ready"
     echo "  generate-project  — regenerate .xcodeproj from project.yml"
     echo "  build             — build Debug configuration"
     echo "  test              — run unit tests"
@@ -38,9 +38,9 @@
   '';
 
   enterTest = ''
-    echo "Running ForceSearch tests"
+    echo "Running Scry tests"
     xcodegen --version
-    cd $DEVENV_ROOT/ForceSearch && xcodegen generate
-    xcodebuild -project ForceSearch.xcodeproj -scheme ForceSearch -configuration Debug build
+    cd $DEVENV_ROOT/Scry && xcodegen generate
+    xcodebuild -project Scry.xcodeproj -scheme Scry -configuration Debug build
   '';
 }

@@ -2,8 +2,8 @@ import Foundation
 import AppKit
 
 enum Constants {
-    static let appName = "ForceSearch"
-    static let bundleIdentifier = "com.giacomo.ForceSearch"
+    static let appName = "Scry"
+    static let bundleIdentifier = "com.giacomo.Scry"
 
     enum Panel {
         static let defaultWidth: CGFloat = 520

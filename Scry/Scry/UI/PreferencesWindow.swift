@@ -37,7 +37,7 @@ struct PreferencesView: View {
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "ForceSearch-settings.json"
+        panel.nameFieldStringValue = "Scry-settings.json"
 
         panel.begin { result in
             if result == .OK, let url = panel.url {
@@ -80,7 +80,7 @@ final class PreferencesWindowController: NSObject {
             defer: false
         )
         win.contentView = hostingView
-        win.title = "ForceSearch Preferences"
+        win.title = "Scry Preferences"
         win.center()
         win.isReleasedWhenClosed = false
         win.delegate = self

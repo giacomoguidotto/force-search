@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ForceSearchApp: App {
+struct ScryApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
