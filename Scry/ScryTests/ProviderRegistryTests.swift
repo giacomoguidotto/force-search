@@ -31,12 +31,11 @@ final class ProviderRegistryTests: XCTestCase {
         let wiki = WikipediaProvider()
         let url = wiki.searchURL(for: "Albert Einstein")
         XCTAssertNotNil(url)
-        XCTAssertTrue(url!.absoluteString.contains("wikipedia.org"))
         let urlString = url!.absoluteString
-        XCTAssertTrue(
-            urlString.contains("Albert%20Einstein") || urlString.contains("Albert+Einstein") || urlString.contains("Albert Einstein"),
-            "Expected query in URL, got: \(urlString)"
-        )
+        XCTAssertTrue(urlString.contains("wikipedia.org"))
+        // URLComponents encodes spaces as + in query parameters
+        XCTAssertTrue(urlString.contains("titles=Albert+Einstein") || urlString.contains("titles=Albert%20Einstein"),
+            "Expected query in URL, got: \(urlString)")
     }
 
     func testWikipediaIsNativeRendering() {

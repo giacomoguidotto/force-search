@@ -7,10 +7,19 @@ struct WikipediaProvider: SearchProvider {
     let supportsNativeRendering = true
 
     func searchURL(for query: String) -> URL? {
-        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            return nil
-        }
-        return URL(string: "https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts|pageimages&exintro=1&explaintext=1&piprop=thumbnail&pithumbsize=300&titles=\(encoded)&redirects=1")
+        var components = URLComponents(string: "https://en.wikipedia.org/w/api.php")
+        components?.queryItems = [
+            URLQueryItem(name: "action", value: "query"),
+            URLQueryItem(name: "format", value: "json"),
+            URLQueryItem(name: "prop", value: "extracts|pageimages"),
+            URLQueryItem(name: "exintro", value: "1"),
+            URLQueryItem(name: "explaintext", value: "1"),
+            URLQueryItem(name: "piprop", value: "thumbnail"),
+            URLQueryItem(name: "pithumbsize", value: "300"),
+            URLQueryItem(name: "titles", value: query),
+            URLQueryItem(name: "redirects", value: "1"),
+        ]
+        return components?.url
     }
 
     func search(query: String) async throws -> [SearchResult] {
