@@ -27,6 +27,16 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 20) {
                 permissionStep(
                     number: 1,
+                    title: "Disable Look Up",
+                    description: "macOS Look Up uses force-click by default, which conflicts with Scry. Change it to three-finger tap or disable it.",
+                    granted: !permissions.lookUpConflictDetected,
+                    buttonLabel: "Open Trackpad Settings",
+                    resolvedLabel: "No conflict",
+                    action: { permissions.openTrackpadSettings() }
+                )
+
+                permissionStep(
+                    number: 2,
                     title: "Accessibility Access",
                     description: "Required to read selected text from any application.",
                     granted: permissions.accessibilityGranted,
@@ -34,7 +44,7 @@ struct OnboardingView: View {
                 )
 
                 permissionStep(
-                    number: 2,
+                    number: 3,
                     title: "Input Monitoring",
                     description: "Required to detect force-click gestures on the trackpad.",
                     granted: permissions.inputMonitoringGranted,
@@ -66,7 +76,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }
-        .frame(width: 420, height: 480)
+        .frame(width: 420, height: 580)
         .onAppear {
             permissions.checkAll()
             permissions.startPolling()
@@ -82,6 +92,8 @@ struct OnboardingView: View {
         title: String,
         description: String,
         granted: Bool,
+        buttonLabel: String = "Grant Permission",
+        resolvedLabel: String = "Granted",
         action: @escaping () -> Void
     ) -> some View {
         HStack(alignment: .top, spacing: 14) {
@@ -108,13 +120,13 @@ struct OnboardingView: View {
                     .foregroundColor(.secondary)
 
                 if !granted {
-                    Button("Grant Permission") {
+                    Button(buttonLabel) {
                         action()
                     }
                     .controlSize(.small)
                     .padding(.top, 4)
                 } else {
-                    Text("Granted")
+                    Text(resolvedLabel)
                         .font(.caption)
                         .foregroundColor(.green)
                         .padding(.top, 4)
@@ -145,7 +157,7 @@ final class OnboardingWindowController {
 
         let hostingView = NSHostingView(rootView: onboardingView)
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 480),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 580),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false

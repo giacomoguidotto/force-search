@@ -7,6 +7,7 @@ final class PermissionsService: ObservableObject {
 
     @Published private(set) var accessibilityGranted: Bool = false
     @Published private(set) var inputMonitoringGranted: Bool = false
+    @Published private(set) var lookUpConflictDetected: Bool = false
 
     var allPermissionsGranted: Bool {
         accessibilityGranted && inputMonitoringGranted
@@ -21,6 +22,7 @@ final class PermissionsService: ObservableObject {
     func checkAll() {
         accessibilityGranted = AXIsProcessTrusted()
         inputMonitoringGranted = checkInputMonitoring()
+        lookUpConflictDetected = checkLookUpConflict()
     }
 
     /// Prompts for Accessibility access and opens the Settings pane.
@@ -29,6 +31,11 @@ final class PermissionsService: ObservableObject {
         AXIsProcessTrustedWithOptions(options)
         // Also open the pane directly so the user can find & toggle the app
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+    }
+
+    /// Opens System Settings → Trackpad so the user can change Look Up gesture.
+    func openTrackpadSettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Trackpad-Settings.extension")!)
     }
 
     /// Prompts for Input Monitoring access and opens the Settings pane.
@@ -58,5 +65,15 @@ final class PermissionsService: ObservableObject {
         // CGPreflightListenEventAccess() returns true if we have input monitoring permission.
         // Available macOS 10.15+
         return CGPreflightListenEventAccess()
+    }
+
+    /// Returns true when macOS Look Up is set to fire on force-click, which conflicts with Scry.
+    private func checkLookUpConflict() -> Bool {
+        let trackpadDefaults = UserDefaults(suiteName: "com.apple.AppleMultitouchTrackpad")
+        let threeFingerTap = trackpadDefaults?.integer(forKey: "TrackpadThreeFingerTapGesture") ?? 0
+        let forceClickEnabled = UserDefaults.standard.bool(forKey: "com.apple.trackpad.forceClick")
+
+        // Conflict: force click is enabled AND Look Up uses force-click (three-finger tap gesture == 0)
+        return forceClickEnabled && threeFingerTap == 0
     }
 }

@@ -8,7 +8,6 @@ macOS menu-bar app that replaces "Look Up" (Force Touch) with instant search in 
 - `Scry/Scry/` — app source (App/, Services/, Providers/, UI/, Models/, Utilities/)
 - `Scry/ScryTests/` — unit tests
 - `.xcodeproj` is **generated** — never edit it by hand, run `xcodegen generate` inside `Scry/`
-- `devenv.nix` — nix dev shell with `xcodegen`, `gh`, Swift; helper scripts: `generate-project`, `build`, `test`, `clean`
 
 ## Common mistakes
 
@@ -24,7 +23,7 @@ macOS menu-bar app that replaces "Look Up" (Force Touch) with instant search in 
 
 ```sh
 cd Scry && swift build          # SPM (works with CLT only)
-cd Scry && xcodegen generate    # regenerate .xcodeproj (needs xcodegen from devenv)
+cd Scry && xcodegen generate    # regenerate .xcodeproj (needs xcodegen)
 ```
 
 ## Architecture
