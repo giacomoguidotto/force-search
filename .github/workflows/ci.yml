@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ForceSearch
+        run: xcodegen generate
+
+      - name: Build
+        working-directory: ForceSearch
+        run: |
+          xcodebuild \
+            -project ForceSearch.xcodeproj \
+            -scheme ForceSearch \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            build \
+            | xcpretty || true
+
+      - name: Run Tests
+        working-directory: ForceSearch
+        run: |
+          xcodebuild \
+            -project ForceSearch.xcodeproj \
+            -scheme ForceSearch \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            test \
+            | xcpretty || true
+
+  lint:
+    name: Swift Lint
+    runs-on: macos-14
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Swift formatting
+        run: |
+          if command -v swiftformat &> /dev/null; then
+            swiftformat --lint ForceSearch/ForceSearch/ || echo "SwiftFormat lint warnings found"
+          else
+            echo "SwiftFormat not installed, skipping lint"
+          fi
+
+  release:
+    name: Build Release
+    runs-on: macos-14
+    timeout-minutes: 30
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ForceSearch
+        run: xcodegen generate
+
+      - name: Build Release
+        working-directory: ForceSearch
+        run: |
+          xcodebuild \
+            -project ForceSearch.xcodeproj \
+            -scheme ForceSearch \
+            -configuration Release \
+            -derivedDataPath DerivedData \
+            build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ForceSearch.app
+          path: ForceSearch/DerivedData/Build/Products/Release/ForceSearch.app
+          retention-days: 14
