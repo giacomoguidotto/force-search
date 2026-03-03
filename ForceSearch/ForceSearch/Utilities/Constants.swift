@@ -1,0 +1,59 @@
+import Foundation
+import AppKit
+
+enum Constants {
+    static let appName = "ForceSearch"
+    static let bundleIdentifier = "com.giacomo.ForceSearch"
+
+    enum Panel {
+        static let defaultWidth: CGFloat = 520
+        static let defaultHeight: CGFloat = 580
+        static let defaultCornerRadius: CGFloat = 14
+        static let edgeMargin: CGFloat = 12
+        static let searchBarHeight: CGFloat = 44
+        static let tabBarHeight: CGFloat = 32
+        static let hintBarHeight: CGFloat = 28
+        static let minWidth: CGFloat = 360
+        static let minHeight: CGFloat = 300
+        static let maxWidth: CGFloat = 900
+        static let maxHeight: CGFloat = 800
+    }
+
+    enum Timing {
+        static let debounceCooldown: TimeInterval = 0.3
+        static let healthCheckInterval: TimeInterval = 5.0
+        static let maxQueryLength = 200
+    }
+
+    enum Defaults {
+        static let pressureSensitivity: Double = 0.8
+        static let defaultProvider = "google"
+        static let enabledProviders = ["google", "duckduckgo", "wikipedia"]
+    }
+
+    enum UserDefaultsKeys {
+        static let triggerMethod = "triggerMethod"
+        static let hotKeyKeyCode = "hotKeyKeyCode"
+        static let hotKeyModifiers = "hotKeyModifiers"
+        static let pressureSensitivity = "pressureSensitivity"
+        static let panelWidth = "panelWidth"
+        static let panelHeight = "panelHeight"
+        static let panelOpacity = "panelOpacity"
+        static let cornerRadius = "cornerRadius"
+        static let showAnimations = "showAnimations"
+        static let theme = "theme"
+        static let defaultProvider = "defaultProvider"
+        static let rememberLastProvider = "rememberLastProvider"
+        static let lastUsedProvider = "lastUsedProvider"
+        static let dismissOnLinkClick = "dismissOnLinkClick"
+        static let openLinksIn = "openLinksIn"
+        static let showShortcutHints = "showShortcutHints"
+        static let maxQueryLength = "maxQueryLength"
+        static let enabledProviders = "enabledProviders"
+        static let providerOrder = "providerOrder"
+        static let launchAtLogin = "launchAtLogin"
+        static let showMenuBarIcon = "showMenuBarIcon"
+        static let menuBarIconStyle = "menuBarIconStyle"
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
+    }
+}
