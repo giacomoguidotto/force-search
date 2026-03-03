@@ -27,7 +27,7 @@ final class HotKeyService {
         unregister()
         currentKeyCombo = keyCombo
 
-        var hotKeyID = Self.hotKeyID
+        let hotKeyID = Self.hotKeyID
         let status = RegisterEventHotKey(
             keyCombo.keyCode,
             keyCombo.modifiers,

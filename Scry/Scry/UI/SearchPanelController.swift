@@ -429,8 +429,9 @@ final class SearchPanelController: NSObject {
     private func openInBrowser() {
         guard let url = currentBrowserURL() else { return }
         let target = settings.openLinksIn
-        if let bundleID = target.bundleIdentifier {
-            NSWorkspace.shared.open([url], withAppBundleIdentifier: bundleID, options: [], additionalEventParamDescriptor: nil, launchIdentifiers: nil)
+        if let bundleID = target.bundleIdentifier,
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
         } else {
             NSWorkspace.shared.open(url)
         }
@@ -519,8 +520,9 @@ extension SearchPanelController: SearchWebViewDelegate {
 
     func webViewRequestedExternalNavigation(url: URL) {
         let target = settings.openLinksIn
-        if let bundleID = target.bundleIdentifier {
-            NSWorkspace.shared.open([url], withAppBundleIdentifier: bundleID, options: [], additionalEventParamDescriptor: nil, launchIdentifiers: nil)
+        if let bundleID = target.bundleIdentifier,
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
         } else {
             NSWorkspace.shared.open(url)
         }

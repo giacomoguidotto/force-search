@@ -128,8 +128,9 @@ final class NativeResultView: NSScrollView {
 
     private func openInBrowser(url: URL) {
         let settings = AppSettings.shared
-        if let bundleID = settings.openLinksIn.bundleIdentifier {
-            NSWorkspace.shared.open([url], withAppBundleIdentifier: bundleID, options: [], additionalEventParamDescriptor: nil, launchIdentifiers: nil)
+        if let bundleID = settings.openLinksIn.bundleIdentifier,
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
         } else {
             NSWorkspace.shared.open(url)
         }
