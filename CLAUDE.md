@@ -9,3 +9,7 @@ Run all three checks and fix any failures before considering the task done:
 ```sh
 cd Scry && swift build && swift test && swiftlint
 ```
+
+## Xcode Project
+
+The Xcode project is generated from `Scry/project.yml` using XcodeGen. Re-run `xcodegen` from the `Scry/` directory whenever you add, remove, or rename source files, or change project settings. Code-only changes to existing files do not require regeneration.
