@@ -7,7 +7,7 @@ The purpose of this file is to describe common mistakes and confusion points tha
 Run all three checks and fix any failures before considering the task done:
 
 ```sh
-cd Scry && swift build && swift test && swiftlint
+cd Scry && xcodegen generate && xcodebuild -scheme Scry -configuration Debug build test && swiftlint
 ```
 
 ## Xcode Project

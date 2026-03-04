@@ -25,16 +25,6 @@ Replace macOS's useless "Look Up" (Force Touch / Siri Knowledge) with instant Go
 
 ### 1. Build and run
 
-**With Swift Package Manager** (no Xcode.app required, just Command Line Tools):
-
-```bash
-cd Scry
-swift build
-swift test
-```
-
-**With Xcode** (if installed):
-
 ```bash
 cd Scry
 xcodegen generate   # regenerate .xcodeproj from project.yml
