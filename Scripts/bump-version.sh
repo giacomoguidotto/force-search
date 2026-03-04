@@ -59,3 +59,8 @@ fi
 
 git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
 echo "Tagged v${NEW_VERSION}"
+
+# Signal to GitHub Actions
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  echo "tag=v${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+fi
