@@ -6,8 +6,6 @@ if [[ "${1:-}" == "--dry-run" ]]; then
   DRY_RUN=true
 fi
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-
 # Get latest semver tag, default to v0.0.0
 LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
 if [[ -z "$LATEST_TAG" ]]; then
@@ -55,22 +53,9 @@ NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 echo "Bump: $BUMP → v${NEW_VERSION}"
 
 if $DRY_RUN; then
-  echo "(dry run — no files changed, no tag created)"
+  echo "(dry run — no tag created)"
   exit 0
 fi
 
-# Update project.yml
-sed -i '' "s/CFBundleShortVersionString: \".*\"/CFBundleShortVersionString: \"${NEW_VERSION}\"/" \
-  "$REPO_ROOT/Scry/project.yml"
-
-# Update Info.plist
-sed -i '' "s|<string>[0-9]*\.[0-9]*\.[0-9]*</string><!-- CFBundleShortVersionString -->|<string>${NEW_VERSION}</string><!-- CFBundleShortVersionString -->|" \
-  "$REPO_ROOT/Scry/Scry/App/Info.plist" 2>/dev/null || \
-plutil -replace CFBundleShortVersionString -string "$NEW_VERSION" \
-  "$REPO_ROOT/Scry/Scry/App/Info.plist"
-
-git add "$REPO_ROOT/Scry/project.yml" "$REPO_ROOT/Scry/Scry/App/Info.plist"
-git commit -m "chore: bump version to v${NEW_VERSION}"
 git tag -a "v${NEW_VERSION}" -m "v${NEW_VERSION}"
-
 echo "Tagged v${NEW_VERSION}"

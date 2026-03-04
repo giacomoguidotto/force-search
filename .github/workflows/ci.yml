@@ -84,11 +84,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
       - name: Bump version
         id: bump
         run: |
@@ -96,7 +91,7 @@ jobs:
 
       - name: Push tag
         if: steps.bump.outputs.skip != 'true'
-        run: git push --follow-tags
+        run: git push --tags
 
       - name: Create GitHub Release
         if: steps.bump.outputs.skip != 'true'
