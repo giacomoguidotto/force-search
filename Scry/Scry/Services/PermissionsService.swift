@@ -20,7 +20,7 @@ final class PermissionsService: ObservableObject {
     }
 
     func checkAll() {
-        accessibilityGranted = checkAccessibility()
+        accessibilityGranted = AXIsProcessTrusted()
         inputMonitoringGranted = checkInputMonitoring()
         lookUpConflictDetected = checkLookUpConflict()
     }
@@ -63,26 +63,6 @@ final class PermissionsService: ObservableObject {
     }
 
     // MARK: - Private
-
-    /// AXIsProcessTrusted() can return stale results on some macOS versions,
-    /// reporting false even after the user has granted access. Fall back to
-    /// an actual accessibility query to detect the grant.
-    private func checkAccessibility() -> Bool {
-        if AXIsProcessTrusted() {
-            return true
-        }
-        // Attempt an actual accessibility query as a practical test.
-        let systemWide = AXUIElementCreateSystemWide()
-        var value: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(
-            systemWide,
-            kAXFocusedApplicationAttribute as CFString,
-            &value
-        )
-        // .apiDisabled means we definitely lack access; any other result
-        // (including .noValue when nothing is focused) means access is granted.
-        return result != .apiDisabled
-    }
 
     private func checkInputMonitoring() -> Bool {
         // CGPreflightListenEventAccess() returns true if we have input monitoring permission.

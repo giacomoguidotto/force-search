@@ -9,9 +9,13 @@ final class EventTapService {
     private var healthCheckTimer: Timer?
     private var passiveMonitor: Any?
     private let settings = AppSettings.shared
+    fileprivate let debugLog = DebugLogStore.shared
 
     /// Whether force-touch detection is currently active.
     private(set) var isRunning = false
+
+    /// True when using a passive NSEvent monitor instead of a CGEvent tap.
+    private(set) var usingPassiveFallback = false
 
     /// Previous pressure stage — used to detect the 0→2 transition.
     fileprivate var previousStage = 0
@@ -20,8 +24,16 @@ final class EventTapService {
     fileprivate var lastForceClickTime: Date = .distantPast
 
     func start() {
-        guard !isRunning else { return }
-        guard settings.triggerMethod == .forceClick else { return }
+        guard !isRunning else {
+            debugLog.log("EventTap", "start() called but already running")
+            return
+        }
+        guard settings.triggerMethod == .forceClick else {
+            debugLog.log("EventTap", "start() skipped — trigger method is not forceClick")
+            return
+        }
+
+        debugLog.log("EventTap", "Creating CGEvent tap for pressure events...")
 
         // NSEvent.EventType.pressure = 34; no CGEventType equivalent
         let pressureEventType: CGEventType = CGEventType(rawValue: 34)!
@@ -35,6 +47,7 @@ final class EventTapService {
             callback: eventTapCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
+            debugLog.log("EventTap", "CGEvent.tapCreate FAILED — falling back to passive monitor")
             // Fallback: use passive event monitor (cannot suppress native Look Up)
             startPassiveMonitor()
             return
@@ -45,6 +58,9 @@ final class EventTapService {
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         isRunning = true
+        usingPassiveFallback = false
+        debugLog.eventTapStatus = "Active (CGEvent tap)"
+        debugLog.log("EventTap", "CGEvent tap created and enabled successfully")
 
         // Health-check timer: re-enable tap if macOS disables it
         healthCheckTimer = Timer.scheduledTimer(withTimeInterval: Constants.Timing.healthCheckInterval, repeats: true) { [weak self] _ in
@@ -68,7 +84,9 @@ final class EventTapService {
         healthCheckTimer?.invalidate()
         healthCheckTimer = nil
         isRunning = false
+        usingPassiveFallback = false
         previousStage = 0
+        debugLog.eventTapStatus = "Stopped"
     }
 
     // MARK: - Internal (called from C callback)
@@ -77,14 +95,25 @@ final class EventTapService {
         if previousStage < 2 && stage >= 2 {
             let now = Date()
             guard now.timeIntervalSince(lastForceClickTime) > Constants.Timing.debounceCooldown else {
+                debugLog.log("EventTap", "Stage \(previousStage)→\(stage) DEBOUNCED (cooldown)")
                 previousStage = stage
                 return
             }
             guard pressure >= settings.pressureSensitivity else {
+                debugLog.log(
+                    "EventTap",
+                    "Stage \(previousStage)→\(stage) BELOW THRESHOLD " +
+                    "(pressure=\(String(format: "%.3f", pressure)), " +
+                    "threshold=\(String(format: "%.3f", settings.pressureSensitivity)))"
+                )
                 previousStage = stage
                 return
             }
             lastForceClickTime = now
+            debugLog.log(
+                "EventTap",
+                "FORCE-CLICK detected (stage=\(stage), pressure=\(String(format: "%.3f", pressure)))"
+            )
             DispatchQueue.main.async { [weak self] in
                 self?.forceClickPublisher.send(NSEvent.mouseLocation)
             }
@@ -112,11 +141,15 @@ final class EventTapService {
             self.handleStageTransition(stage: event.stage, pressure: Double(event.pressure))
         }
         isRunning = true
+        usingPassiveFallback = true
+        debugLog.eventTapStatus = "Passive (fallback)"
+        debugLog.log("EventTap", "Passive monitor started (cannot suppress native Look Up)")
     }
 
     fileprivate func healthCheck() {
         guard let tap = eventTap else { return }
         if !CGEvent.tapIsEnabled(tap: tap) {
+            debugLog.log("EventTap", "Health check: tap was disabled, re-enabling")
             CGEvent.tapEnable(tap: tap, enable: true)
         }
     }
@@ -156,6 +189,13 @@ private func eventTapCallback(
     let stage = nsEvent.stage
     let pressure = Double(nsEvent.pressure)
     let prevStage = service.previousStage
+
+    if stage > 0 || prevStage > 0 {
+        service.debugLog.log(
+            "Pressure",
+            "stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(prevStage))"
+        )
+    }
 
     // Process the transition
     service.handleStageTransition(stage: stage, pressure: pressure)

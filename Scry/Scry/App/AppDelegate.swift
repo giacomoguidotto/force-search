@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let permissions = PermissionsService.shared
   private var onboardingController = OnboardingWindowController()
   private var preferencesController: PreferencesWindowController?
+  private var debugConsoleController: DebugConsoleWindowController?
   private var eventTapService: EventTapService?
   private var textExtractorService: TextExtractorService?
   private var hotKeyService: HotKeyService?
@@ -45,12 +46,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     onboardingController.show()
   }
 
+  func showDebugConsole() {
+    if debugConsoleController == nil {
+      debugConsoleController = DebugConsoleWindowController()
+    }
+    debugConsoleController?.show()
+  }
+
   func performSearch(at point: NSPoint?) {
+    let debugLog = DebugLogStore.shared
+    debugLog.log("Search", "performSearch called")
+
     let query = textExtractorService?.extractSelectedText()
 
-    guard let query = query, !query.isEmpty else { return }
+    guard let query = query, !query.isEmpty else {
+      debugLog.log("Search", "No text extracted — aborting")
+      return
+    }
 
     let truncatedQuery = String(query.prefix(settings.maxQueryLength))
+    debugLog.log("Search", "Extracted text: \"\(truncatedQuery)\"")
 
     if searchPanelController == nil {
       searchPanelController = SearchPanelController()
@@ -108,6 +123,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           self?.eventTapService?.start()
         case .hotKeyOnly:
           self?.eventTapService?.stop()
+        }
+      }
+      .store(in: &cancellables)
+
+    // Retry event tap when permissions change
+    permissions.$accessibilityGranted
+      .combineLatest(permissions.$inputMonitoringGranted)
+      .dropFirst()
+      .filter { $0.0 && $0.1 }
+      .sink { [weak self] _ in
+        guard let self = self else { return }
+        if self.settings.triggerMethod == .forceClick {
+          self.eventTapService?.stop()
+          self.eventTapService?.start()
         }
       }
       .store(in: &cancellables)

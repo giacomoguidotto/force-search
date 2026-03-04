@@ -5,6 +5,7 @@ struct MenuBarView: View {
     @ObservedObject var permissions = PermissionsService.shared
     var onShowPreferences: () -> Void
     var onShowOnboarding: () -> Void
+    var onShowDebugConsole: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -50,6 +51,13 @@ struct MenuBarView: View {
             // Actions
             Button(action: onShowPreferences) {
                 Label("Preferences...", systemImage: "gearshape")
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+
+            Button(action: onShowDebugConsole) {
+                Label("Debug Console...", systemImage: "ladybug")
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 12)

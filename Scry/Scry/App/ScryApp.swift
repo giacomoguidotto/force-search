@@ -8,7 +8,8 @@ struct ScryApp: App {
         MenuBarExtra {
             MenuBarView(
                 onShowPreferences: { appDelegate.showPreferences() },
-                onShowOnboarding: { appDelegate.showOnboarding() }
+                onShowOnboarding: { appDelegate.showOnboarding() },
+                onShowDebugConsole: { appDelegate.showDebugConsole() }
             )
         } label: {
             Image(systemName: AppSettings.shared.menuBarIconStyle.symbolName)
