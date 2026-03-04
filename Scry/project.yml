@@ -40,7 +40,7 @@ targets:
         INFOPLIST_FILE: Scry/App/Info.plist
         CODE_SIGN_ENTITLEMENTS: Scry/App/Scry.entitlements
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
-        ENABLE_HARDENED_RUNTIME: false
+        ENABLE_HARDENED_RUNTIME: true
     dependencies: []
     scheme:
       testTargets:
