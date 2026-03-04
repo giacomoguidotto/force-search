@@ -86,20 +86,17 @@ jobs:
 
       - name: Bump version
         id: bump
-        run: |
-          bash Scripts/bump-version.sh || echo "skip=true" >> "$GITHUB_OUTPUT"
+        run: bash Scripts/bump-version.sh
 
       - name: Push tag
-        if: steps.bump.outputs.skip != 'true'
-        run: git push --tags
+        if: steps.bump.outputs.tag
+        run: git push origin "${{ steps.bump.outputs.tag }}"
 
       - name: Create GitHub Release
-        if: steps.bump.outputs.skip != 'true'
+        if: steps.bump.outputs.tag
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG=$(git describe --tags --abbrev=0)
-          gh release create "$TAG" --title "$TAG"
+        run: gh release create "${{ steps.bump.outputs.tag }}" --title "${{ steps.bump.outputs.tag }}"
 
   release:
     name: Build Release
