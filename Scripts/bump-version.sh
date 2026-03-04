@@ -22,7 +22,7 @@ IFS='.' read -r MAJOR MINOR PATCH <<< "${LATEST_TAG#v}"
 
 # Scan commits since last tag
 BUMP=""
-while IFS= read -r msg; do
+while IFS= read -r msg || [[ -n "$msg" ]]; do
   if [[ "$msg" =~ ^feat!: ]] || [[ "$msg" =~ ^[a-z]+\(.*\)!: ]] || [[ "$msg" =~ BREAKING\ CHANGE ]]; then
     BUMP="major"
     break
