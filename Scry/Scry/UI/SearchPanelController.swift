@@ -15,12 +15,18 @@ final class SearchPanelController: NSObject {
     private var loadingBar: NSView!
     private var hintBar: NSView!
     private var contentContainer: NSView!
+    private var placeholderLabel: NSTextField!
 
     // State
     private var currentQuery = ""
     private var currentProviders: [SearchProvider] = []
     private var selectedProviderIndex = 0
     private var clickOutsideMonitor: Any?
+
+    /// Cached web view controllers per provider ID, to avoid re-fetching when switching tabs.
+    private var webViewCache: [String: SearchWebViewController] = [:]
+    /// The query that the cached pages were loaded with. Cache is invalidated on new queries.
+    private var cachedQuery = ""
 
     func show(query: String, at point: NSPoint) {
         currentQuery = query
@@ -106,10 +112,24 @@ final class SearchPanelController: NSObject {
         contentContainer.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(contentContainer)
 
+        // Placeholder label (shown while content is loading)
+        placeholderLabel = NSTextField(labelWithString: "Searching…")
+        placeholderLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        placeholderLabel.textColor = .tertiaryLabelColor
+        placeholderLabel.alignment = .center
+        placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentContainer.addSubview(placeholderLabel)
+        NSLayoutConstraint.activate([
+            placeholderLabel.centerXAnchor.constraint(equalTo: contentContainer.centerXAnchor),
+            placeholderLabel.centerYAnchor.constraint(equalTo: contentContainer.centerYAnchor),
+        ])
+
         // Web view
         webViewController = SearchWebViewController()
         webViewController.delegate = self
         webViewController.webView.translatesAutoresizingMaskIntoConstraints = false
+        // Pre-warm WebKit process to avoid cold-start latency on first search
+        webViewController.webView.loadHTMLString("", baseURL: nil)
 
         // Native result view
         nativeResultView = NativeResultView()
@@ -159,47 +179,68 @@ final class SearchPanelController: NSObject {
         let bar = NSView()
         bar.wantsLayer = true
         bar.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.05).cgColor
-
-        let hints = [
-            ("⎋", "Close"),
-            ("⌘↩", "Open in Browser"),
-            ("⌘C", "Copy URL"),
-        ]
-
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
-
-        for (key, label) in hints {
+        for (key, label) in [("⎋", "Close"), ("⌘↩", "Open in Browser"), ("⌘C", "Copy URL")] {
             let keyLabel = NSTextField(labelWithString: key)
             keyLabel.font = .monospacedSystemFont(ofSize: 10, weight: .medium)
             keyLabel.textColor = .tertiaryLabelColor
-
             let descLabel = NSTextField(labelWithString: label)
             descLabel.font = .systemFont(ofSize: 10)
             descLabel.textColor = .tertiaryLabelColor
-
             let pair = NSStackView(views: [keyLabel, descLabel])
             pair.spacing = 4
             stack.addArrangedSubview(pair)
         }
-
         bar.addSubview(stack)
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: bar.centerXAnchor),
             stack.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
         ])
-
         return bar
     }
 
     // MARK: - Content Display
 
+    private func showPlaceholder(_ text: String) {
+        placeholderLabel.stringValue = text
+        placeholderLabel.isHidden = false
+    }
+
+    private func hidePlaceholder() {
+        placeholderLabel.isHidden = true
+    }
+
     private func showWebContent(for provider: SearchProvider) {
         nativeResultView.removeFromSuperview()
 
-        let wv = webViewController.webView
+        // Invalidate cache if query changed
+        if cachedQuery != currentQuery {
+            clearWebViewCache()
+            cachedQuery = currentQuery
+        }
+
+        // Reuse cached web view controller for this provider, or create a new one
+        let controller: SearchWebViewController
+        if let cached = webViewCache[provider.id] {
+            controller = cached
+        } else {
+            controller = SearchWebViewController()
+            controller.delegate = self
+            webViewCache[provider.id] = controller
+        }
+
+        // Remove the previous web view from display
+        webViewController.webView.removeFromSuperview()
+        webViewController = controller
+
+        // Show loading placeholder until the page finishes (only for uncached loads)
+        showPlaceholder("Searching…")
+
+        let wv = controller.webView
+        wv.translatesAutoresizingMaskIntoConstraints = false
         if wv.superview !== contentContainer {
             wv.removeFromSuperview()
             contentContainer.addSubview(wv)
@@ -211,7 +252,21 @@ final class SearchPanelController: NSObject {
             ])
         }
 
-        webViewController.search(query: currentQuery, provider: provider)
+        // If this page was already loaded for the same query, skip the network request
+        if controller.currentURL != nil && cachedQuery == currentQuery {
+            hidePlaceholder()
+            loadingBar.isHidden = true
+            stopLoadingAnimation()
+        } else {
+            controller.search(query: currentQuery, provider: provider)
+        }
+    }
+
+    private func clearWebViewCache() {
+        for (_, controller) in webViewCache {
+            controller.stopLoading()
+        }
+        webViewCache.removeAll()
     }
 
     private func showNativeContent(for provider: SearchProvider) {
@@ -229,6 +284,7 @@ final class SearchPanelController: NSObject {
             ])
         }
 
+        hidePlaceholder()
         loadingBar.isHidden = false
         startLoadingAnimation()
 
@@ -242,7 +298,10 @@ final class SearchPanelController: NSObject {
                 }
             } catch {
                 await MainActor.run {
-                    nativeResultView.display(results: [])
+                    nativeResultView.display(
+                        results: [],
+                        errorMessage: "Search failed — please try again."
+                    )
                     loadingBar.isHidden = true
                     stopLoadingAnimation()
                 }
@@ -268,22 +327,13 @@ final class SearchPanelController: NSObject {
     // MARK: - Positioning
 
     private func calculateFrame(near point: NSPoint) -> NSRect {
-        let w = settings.panelWidth
-        let h = settings.panelHeight
-        let margin = Constants.Panel.edgeMargin
-
+        let (w, h, margin) = (settings.panelWidth, settings.panelHeight, Constants.Panel.edgeMargin)
         let screenFrame = NSScreen.visibleFrameContaining(point: point)
-
-        // Try below cursor first
         var origin = NSPoint(x: point.x - w / 2, y: point.y - h - 20)
-
-        // If below would go off screen, place above cursor
-        if origin.y < screenFrame.minY + margin {
-            origin.y = point.y + 20
-        }
-
-        let frame = NSRect(origin: origin, size: NSSize(width: w, height: h))
-        return NSScreen.clampedFrame(frame, to: screenFrame, margin: margin)
+        if origin.y < screenFrame.minY + margin { origin.y = point.y + 20 }
+        return NSScreen.clampedFrame(
+            NSRect(origin: origin, size: NSSize(width: w, height: h)), to: screenFrame, margin: margin
+        )
     }
 
     // MARK: - Animations
@@ -354,8 +404,8 @@ final class SearchPanelController: NSObject {
 
     private func startClickOutsideMonitor() {
         stopClickOutsideMonitor()
-        clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self = self, let panel = self.panel else { return }
+        clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self, weak panel] event in
+            guard let self = self, let panel = panel else { return }
             let screenPoint = event.locationInWindow
             // If click is outside the panel, dismiss
             if !panel.frame.contains(screenPoint) {
@@ -458,6 +508,7 @@ final class SearchPanelController: NSObject {
 
     private func cleanup() {
         webViewController.stopLoading()
+        clearWebViewCache()
     }
 }
 
@@ -484,6 +535,10 @@ extension SearchPanelController: ProviderTabBarDelegate {
     func tabBar(_ tabBar: ProviderTabBar, didSelectProviderAt index: Int) {
         guard index != selectedProviderIndex else { return }
         selectedProviderIndex = index
+
+        // Show loading indicator during tab switch
+        loadingBar.isHidden = false
+        startLoadingAnimation()
 
         // Cross-fade animation
         if settings.showAnimations {
@@ -512,6 +567,7 @@ extension SearchPanelController: SearchWebViewDelegate {
     }
 
     func webViewDidFinishLoading() {
+        hidePlaceholder()
         loadingBar.isHidden = true
         stopLoadingAnimation()
     }
@@ -519,6 +575,7 @@ extension SearchPanelController: SearchWebViewDelegate {
     func webViewDidFailLoading(error: Error) {
         loadingBar.isHidden = true
         stopLoadingAnimation()
+        showPlaceholder("Search failed — please try again.")
     }
 
     func webViewRequestedExternalNavigation(url: URL) {

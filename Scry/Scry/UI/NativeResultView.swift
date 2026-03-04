@@ -3,6 +3,8 @@ import AppKit
 /// AppKit view for rendering native search results (e.g., Wikipedia summaries).
 final class NativeResultView: NSScrollView {
     private let stackView = NSStackView()
+    /// Tracks in-flight image loading tasks so they can be cancelled when results are replaced.
+    private var imageTasks: [Task<Void, Never>] = []
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -14,8 +16,18 @@ final class NativeResultView: NSScrollView {
         setup()
     }
 
-    func display(results: [SearchResult]) {
+    func display(results: [SearchResult], errorMessage: String? = nil) {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        cancelImageTasks()
+
+        if let errorMessage = errorMessage {
+            let errorLabel = NSTextField(labelWithString: errorMessage)
+            errorLabel.font = .systemFont(ofSize: 14)
+            errorLabel.textColor = .secondaryLabelColor
+            errorLabel.alignment = .center
+            stackView.addArrangedSubview(errorLabel)
+            return
+        }
 
         if results.isEmpty {
             let noResults = NSTextField(labelWithString: "No results found.")
@@ -33,6 +45,11 @@ final class NativeResultView: NSScrollView {
     }
 
     // MARK: - Private
+
+    private func cancelImageTasks() {
+        imageTasks.forEach { $0.cancel() }
+        imageTasks.removeAll()
+    }
 
     private func setup() {
         drawsBackground = false
@@ -77,22 +94,27 @@ final class NativeResultView: NSScrollView {
             imageView.wantsLayer = true
             imageView.layer?.cornerRadius = 8
             imageView.layer?.masksToBounds = true
+            imageView.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.1).cgColor
             imageView.translatesAutoresizingMaskIntoConstraints = false
 
             NSLayoutConstraint.activate([
-                imageView.widthAnchor.constraint(lessThanOrEqualToConstant: 280),
-                imageView.heightAnchor.constraint(lessThanOrEqualToConstant: 200),
+                imageView.widthAnchor.constraint(equalToConstant: 280),
+                imageView.heightAnchor.constraint(equalToConstant: 160),
             ])
 
-            // Load image async
-            Task {
+            // Load image async with cancellation support
+            let task = Task { [weak imageView] in
+                guard !Task.isCancelled else { return }
                 if let (data, _) = try? await URLSession.shared.data(from: imageURL),
+                   !Task.isCancelled,
                    let image = NSImage(data: data) {
                     await MainActor.run {
-                        imageView.image = image
+                        imageView?.layer?.backgroundColor = nil
+                        imageView?.image = image
                     }
                 }
             }
+            imageTasks.append(task)
 
             container.addArrangedSubview(imageView)
         }

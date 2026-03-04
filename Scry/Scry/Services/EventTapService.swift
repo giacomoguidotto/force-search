@@ -1,6 +1,6 @@
 import AppKit
 import Combine
-import os.log
+import os
 
 private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Scry", category: "EventTap")
 
@@ -20,11 +20,21 @@ final class EventTapService {
     /// True when using a passive NSEvent monitor instead of a CGEvent tap.
     private(set) var usingPassiveFallback = false
 
+    // MARK: - Thread-safe state (accessed from CGEvent callback thread AND main thread)
+
+    /// Lock protecting `_previousStage` and `_lastForceClickTime`.
+    fileprivate var stateLock = os_unfair_lock()
+
     /// Previous pressure stage — used to detect the 0→2 transition.
-    fileprivate var previousStage = 0
+    fileprivate var _previousStage = 0
 
     /// Timestamp of last fired force-click (for debouncing).
-    fileprivate var lastForceClickTime: Date = .distantPast
+    fileprivate var _lastForceClickTime: Date = .distantPast
+
+    /// Cached pressure threshold — read from settings on start() and updated via Combine.
+    fileprivate var cachedPressureThreshold: Double = Constants.Defaults.pressureSensitivity
+
+    private var settingsCancellable: AnyCancellable?
 
     func start() {
         logger.info("start() called — isRunning=\(self.isRunning), triggerMethod=\(String(describing: self.settings.triggerMethod))")
@@ -36,6 +46,14 @@ final class EventTapService {
             debugLog.log("EventTap", "start() skipped — trigger method is not forceClick")
             return
         }
+
+        // Cache pressure threshold and observe future changes
+        cachedPressureThreshold = settings.pressureSensitivity
+        settingsCancellable = settings.$pressureSensitivity
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newValue in
+                self?.cachedPressureThreshold = newValue
+            }
 
         debugLog.log("EventTap", "Creating CGEvent tap for pressure events...")
 
@@ -99,33 +117,47 @@ final class EventTapService {
         runLoopSource = nil
         healthCheckTimer?.invalidate()
         healthCheckTimer = nil
+        settingsCancellable?.cancel()
+        settingsCancellable = nil
         isRunning = false
         usingPassiveFallback = false
-        previousStage = 0
+        os_unfair_lock_lock(&stateLock)
+        _previousStage = 0
+        os_unfair_lock_unlock(&stateLock)
         debugLog.eventTapStatus = "Stopped"
     }
 
     // MARK: - Internal (called from C callback)
 
     fileprivate func handleStageTransition(stage: Int, pressure: Double) {
-        if previousStage < 2 && stage >= 2 {
+        let threshold = cachedPressureThreshold
+
+        os_unfair_lock_lock(&stateLock)
+        let prevStage = _previousStage
+
+        if prevStage < 2 && stage >= 2 {
             let now = Date()
-            guard now.timeIntervalSince(lastForceClickTime) > Constants.Timing.debounceCooldown else {
-                debugLog.log("EventTap", "Stage \(previousStage)→\(stage) DEBOUNCED (cooldown)")
-                previousStage = stage
+            guard now.timeIntervalSince(_lastForceClickTime) > Constants.Timing.debounceCooldown else {
+                debugLog.log("EventTap", "Stage \(prevStage)→\(stage) DEBOUNCED (cooldown)")
+                _previousStage = stage
+                os_unfair_lock_unlock(&stateLock)
                 return
             }
-            guard pressure >= settings.pressureSensitivity else {
+            guard pressure >= threshold else {
                 debugLog.log(
                     "EventTap",
-                    "Stage \(previousStage)→\(stage) BELOW THRESHOLD " +
+                    "Stage \(prevStage)→\(stage) BELOW THRESHOLD " +
                     "(pressure=\(String(format: "%.3f", pressure)), " +
-                    "threshold=\(String(format: "%.3f", settings.pressureSensitivity)))"
+                    "threshold=\(String(format: "%.3f", threshold)))"
                 )
-                previousStage = stage
+                _previousStage = stage
+                os_unfair_lock_unlock(&stateLock)
                 return
             }
-            lastForceClickTime = now
+            _lastForceClickTime = now
+            _previousStage = stage
+            os_unfair_lock_unlock(&stateLock)
+
             debugLog.log(
                 "EventTap",
                 "FORCE-CLICK detected (stage=\(stage), pressure=\(String(format: "%.3f", pressure)))"
@@ -133,18 +165,25 @@ final class EventTapService {
             DispatchQueue.main.async { [weak self] in
                 self?.forceClickPublisher.send(NSEvent.mouseLocation)
             }
+            return
         }
-        previousStage = stage
-        if stage == 0 {
-            previousStage = 0
-        }
+
+        _previousStage = stage == 0 ? 0 : stage
+        os_unfair_lock_unlock(&stateLock)
     }
 
     /// Returns true if the event should be suppressed (native Look Up prevented).
     fileprivate func shouldSuppress(stage: Int, pressure: Double) -> Bool {
-        if previousStage < 2 && stage >= 2 && pressure >= settings.pressureSensitivity {
+        let threshold = cachedPressureThreshold
+
+        os_unfair_lock_lock(&stateLock)
+        let prevStage = _previousStage
+        let lastTime = _lastForceClickTime
+        os_unfair_lock_unlock(&stateLock)
+
+        if prevStage < 2 && stage >= 2 && pressure >= threshold {
             let now = Date()
-            return now.timeIntervalSince(lastForceClickTime) <= 0.05 // Just published
+            return now.timeIntervalSince(lastTime) <= 0.05
         }
         return false
     }
@@ -161,10 +200,15 @@ final class EventTapService {
             guard let self = self else { return }
             let stage = event.stage
             let pressure = Double(event.pressure)
+
+            os_unfair_lock_lock(&self.stateLock)
+            let prevStage = self._previousStage
+            os_unfair_lock_unlock(&self.stateLock)
+
             logger.info("PASSIVE pressure event: stage=\(stage) pressure=\(pressure)")
             self.debugLog.log(
                 "Passive",
-                "stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(self.previousStage))"
+                "stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(prevStage))"
             )
             self.handleStageTransition(stage: stage, pressure: pressure)
         }
@@ -226,7 +270,10 @@ private func eventTapCallback(
 
     let stage = nsEvent.stage
     let pressure = Double(nsEvent.pressure)
-    let prevStage = service.previousStage
+
+    os_unfair_lock_lock(&service.stateLock)
+    let prevStage = service._previousStage
+    os_unfair_lock_unlock(&service.stateLock)
 
     if stage > 0 || prevStage > 0 {
         service.debugLog.log(
@@ -239,9 +286,14 @@ private func eventTapCallback(
     service.handleStageTransition(stage: stage, pressure: pressure)
 
     // Suppress native Look Up if we're handling this force-click
-    if prevStage < 2 && stage >= 2 && pressure >= AppSettings.shared.pressureSensitivity {
+    let threshold = service.cachedPressureThreshold
+    if prevStage < 2 && stage >= 2 && pressure >= threshold {
+        os_unfair_lock_lock(&service.stateLock)
+        let lastTime = service._lastForceClickTime
+        os_unfair_lock_unlock(&service.stateLock)
+
         let now = Date()
-        if now.timeIntervalSince(service.lastForceClickTime) < 0.1 {
+        if now.timeIntervalSince(lastTime) < 0.1 {
             return nil
         }
     }
