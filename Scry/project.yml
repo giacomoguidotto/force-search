@@ -41,6 +41,16 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Scry/App/Scry.entitlements
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
         ENABLE_HARDENED_RUNTIME: true
+    postBuildScripts:
+      - script: |
+          if command -v git &>/dev/null && git rev-parse --git-dir &>/dev/null; then
+            VERSION=$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null)
+            if [ -n "$VERSION" ]; then
+              VERSION="${VERSION#v}"
+              /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+            fi
+          fi
+        name: Inject Git Version
     dependencies: []
     scheme:
       testTargets:

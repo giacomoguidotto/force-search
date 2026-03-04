@@ -22,10 +22,6 @@ The project uses git-tag-based semantic versioning driven by conventional commit
 - `feat:` → minor bump
 - `feat!:` or `BREAKING CHANGE` → major bump
 
-`Scripts/bump-version.sh` reads the latest `v*` tag, scans commits since then, and computes the next version. It updates `CFBundleShortVersionString` in both `Scry/project.yml` and `Scry/Scry/App/Info.plist`, then creates an annotated tag. Use `--dry-run` to preview without changes.
-
-The CI `version` job in `.github/workflows/ci.yml` runs this script on `main` pushes after build+test, pushes the tag, and creates a GitHub Release.
-
-The version is displayed in the onboarding panel via `Bundle.main.infoDictionary["CFBundleShortVersionString"]`.
+Versions come from git tags (`v*`), not source files. `Scripts/bump-version.sh` computes the next semver from conventional commits and creates an annotated tag (no commits). A post-build script in `project.yml` injects the tag into the built app's Info.plist. CI auto-tags and creates GitHub Releases on `main` pushes.
 
 **Important:** Use conventional commit prefixes (`feat:`, `fix:`, etc.) in commit messages so the version bump script can detect them.
