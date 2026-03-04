@@ -1,5 +1,8 @@
 import AppKit
 import Combine
+import os.log
+
+private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Scry", category: "EventTap")
 
 final class EventTapService {
     let forceClickPublisher = PassthroughSubject<NSPoint, Never>()
@@ -24,6 +27,7 @@ final class EventTapService {
     fileprivate var lastForceClickTime: Date = .distantPast
 
     func start() {
+        logger.info("start() called — isRunning=\(self.isRunning), triggerMethod=\(String(describing: self.settings.triggerMethod))")
         guard !isRunning else {
             debugLog.log("EventTap", "start() called but already running")
             return
@@ -62,10 +66,22 @@ final class EventTapService {
         debugLog.eventTapStatus = "Active (CGEvent tap)"
         debugLog.log("EventTap", "CGEvent tap created and enabled successfully")
 
+        // Also start a passive monitor as a safety net — the CGEvent tap may silently
+        // receive no events (e.g. inherited permissions from Xcode). Debouncing in
+        // handleStageTransition prevents double-firing when both sources work.
+        startPassiveMonitor()
+        debugLog.eventTapStatus = "Active (CGEvent tap + passive)"
+
         // Health-check timer: re-enable tap if macOS disables it
         healthCheckTimer = Timer.scheduledTimer(withTimeInterval: Constants.Timing.healthCheckInterval, repeats: true) { [weak self] _ in
             self?.healthCheck()
         }
+    }
+
+    /// Tears down and re-creates the event tap + passive monitor.
+    func restart() {
+        stop()
+        start()
     }
 
     func stop() {
@@ -136,14 +152,36 @@ final class EventTapService {
     // MARK: - Private
 
     private func startPassiveMonitor() {
-        passiveMonitor = NSEvent.addGlobalMonitorForEvents(matching: .pressure) { [weak self] event in
-            guard let self = self else { return }
-            self.handleStageTransition(stage: event.stage, pressure: Double(event.pressure))
+        guard passiveMonitor == nil else {
+            logger.info("startPassiveMonitor: already exists, skipping")
+            return
         }
-        isRunning = true
-        usingPassiveFallback = true
-        debugLog.eventTapStatus = "Passive (fallback)"
-        debugLog.log("EventTap", "Passive monitor started (cannot suppress native Look Up)")
+        logger.info("startPassiveMonitor: registering .pressure global monitor...")
+        let monitor = NSEvent.addGlobalMonitorForEvents(matching: .pressure) { [weak self] event in
+            guard let self = self else { return }
+            let stage = event.stage
+            let pressure = Double(event.pressure)
+            logger.info("PASSIVE pressure event: stage=\(stage) pressure=\(pressure)")
+            self.debugLog.log(
+                "Passive",
+                "stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(self.previousStage))"
+            )
+            self.handleStageTransition(stage: stage, pressure: pressure)
+        }
+        guard let monitor = monitor else {
+            logger.error("startPassiveMonitor: NSEvent.addGlobalMonitorForEvents returned nil!")
+            debugLog.log("EventTap", "WARNING: passive monitor failed to register (nil returned)")
+            return
+        }
+        passiveMonitor = monitor
+        // Only update status flags when used as sole detection method (no CGEvent tap)
+        if eventTap == nil {
+            isRunning = true
+            usingPassiveFallback = true
+            debugLog.eventTapStatus = "Passive (fallback)"
+        }
+        logger.info("startPassiveMonitor: registered successfully")
+        debugLog.log("EventTap", "Passive monitor started")
     }
 
     fileprivate func healthCheck() {

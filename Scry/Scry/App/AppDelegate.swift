@@ -87,9 +87,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       .store(in: &cancellables)
 
-    if permissions.allPermissionsGranted {
-      eventTapService?.start()
-    }
+    // Always attempt to start — EventTapService.start() handles its own guards.
+    // Permissions may be inherited (e.g. running from Xcode) even when
+    // PermissionsService reports false, so let the tap/monitor try regardless.
+    eventTapService?.start()
 
     // Text extractor
     textExtractorService = TextExtractorService()
@@ -135,8 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       .sink { [weak self] _ in
         guard let self = self else { return }
         if self.settings.triggerMethod == .forceClick {
-          self.eventTapService?.stop()
-          self.eventTapService?.start()
+          self.eventTapService?.restart()
         }
       }
       .store(in: &cancellables)
