@@ -17,6 +17,9 @@ struct OnboardingView: View {
                 Text("Replace Look Up with instant search")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .padding(.top, 32)
             .padding(.bottom, 24)

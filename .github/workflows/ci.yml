@@ -69,6 +69,43 @@ jobs:
             echo "SwiftFormat not installed, skipping lint"
           fi
 
+  version:
+    name: Tag Version
+    runs-on: macos-15
+    timeout-minutes: 10
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [build]
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: bump
+        run: |
+          bash Scripts/bump-version.sh || echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push tag
+        if: steps.bump.outputs.skip != 'true'
+        run: git push --follow-tags
+
+      - name: Create GitHub Release
+        if: steps.bump.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          gh release create "$TAG" --title "$TAG"
+
   release:
     name: Build Release
     runs-on: macos-15
