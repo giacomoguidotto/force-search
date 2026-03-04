@@ -128,11 +128,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       .store(in: &cancellables)
 
-    // Retry event tap when permissions change
+    // Retry event tap when permissions change to granted
     permissions.$accessibilityGranted
       .combineLatest(permissions.$inputMonitoringGranted)
+      .map { $0.0 && $0.1 }
+      .removeDuplicates()
       .dropFirst()
-      .filter { $0.0 && $0.1 }
+      .filter { $0 }
       .sink { [weak self] _ in
         guard let self = self else { return }
         if self.settings.triggerMethod == .forceClick {
