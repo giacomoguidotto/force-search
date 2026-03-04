@@ -8,13 +8,6 @@ struct SearchResult {
     let imageURL: URL?
 }
 
-/// A setting that a provider exposes for user configuration.
-struct ProviderSetting {
-    let key: String
-    let name: String
-    let defaultValue: Any
-}
-
 /// Protocol for pluggable search backends.
 /// Web-based providers (Google, DuckDuckGo) return a URL + optional CSS injection.
 /// Native providers (Wikipedia) return structured SearchResult data.
@@ -43,8 +36,6 @@ protocol SearchProvider {
     /// JavaScript to inject into WKWebView after page load.
     var injectedJS: String? { get }
 
-    /// Provider-specific configurable settings.
-    var configurableSettings: [ProviderSetting] { get }
 }
 
 // Default implementations
@@ -57,6 +48,4 @@ extension SearchProvider {
 
     var injectedCSS: String? { nil }
     var injectedJS: String? { nil }
-
-    var configurableSettings: [ProviderSetting] { [] }
 }

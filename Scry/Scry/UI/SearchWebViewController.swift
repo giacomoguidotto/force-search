@@ -14,6 +14,8 @@ final class SearchWebViewController: NSObject {
 
     let webView: WKWebView
     private var currentProvider: SearchProvider?
+    /// Tracks the provider whose scripts are currently installed, to avoid redundant rebuilds.
+    private var installedScriptsProviderID: String?
 
     override init() {
         let config = WKWebViewConfiguration()
@@ -41,23 +43,30 @@ final class SearchWebViewController: NSObject {
 
         guard let url = provider.searchURL(for: query) else { return }
 
-        // Inject CSS via user script
-        let config = webView.configuration
-        config.userContentController.removeAllUserScripts()
+        // Only rebuild user scripts if the provider changed
+        if installedScriptsProviderID != provider.id {
+            installedScriptsProviderID = provider.id
+            let controller = webView.configuration.userContentController
+            controller.removeAllUserScripts()
 
-        if let css = provider.injectedCSS {
-            let cssScript = """
-            var style = document.createElement('style');
-            style.textContent = `\(css)`;
-            document.head.appendChild(style);
-            """
-            let userScript = WKUserScript(source: cssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
-            config.userContentController.addUserScript(userScript)
-        }
+            if let css = provider.injectedCSS {
+                let cssScript = """
+                var style = document.createElement('style');
+                style.textContent = `\(css)`;
+                document.head.appendChild(style);
+                """
+                let userScript = WKUserScript(
+                    source: cssScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true
+                )
+                controller.addUserScript(userScript)
+            }
 
-        if let js = provider.injectedJS {
-            let userScript = WKUserScript(source: js, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
-            config.userContentController.addUserScript(userScript)
+            if let js = provider.injectedJS {
+                let userScript = WKUserScript(
+                    source: js, injectionTime: .atDocumentEnd, forMainFrameOnly: true
+                )
+                controller.addUserScript(userScript)
+            }
         }
 
         let request = URLRequest(url: url)
