@@ -12,6 +12,7 @@ final class SearchPanelController: NSObject {
     private var tabBar: ProviderTabBar!
     private var webViewController: SearchWebViewController!
     private var nativeResultView: NativeResultView!
+    private var aiResultView: AIResultView!
     private var loadingBar: NSView!
     private var hintBar: NSView!
     private var contentContainer: NSView!
@@ -134,6 +135,10 @@ final class SearchPanelController: NSObject {
         // Native result view
         nativeResultView = NativeResultView()
         nativeResultView.translatesAutoresizingMaskIntoConstraints = false
+
+        // AI result view
+        aiResultView = AIResultView()
+        aiResultView.translatesAutoresizingMaskIntoConstraints = false
 
         // Hint bar
         hintBar = createHintBar()
@@ -269,6 +274,48 @@ final class SearchPanelController: NSObject {
         webViewCache.removeAll()
     }
 
+    private func showAIContent(for provider: AISearchProvider) {
+        webViewController.webView.removeFromSuperview()
+        webViewController.stopLoading()
+        nativeResultView.removeFromSuperview()
+
+        if aiResultView.superview !== contentContainer {
+            aiResultView.removeFromSuperview()
+            contentContainer.addSubview(aiResultView)
+            NSLayoutConstraint.activate([
+                aiResultView.topAnchor.constraint(equalTo: contentContainer.topAnchor),
+                aiResultView.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
+                aiResultView.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
+                aiResultView.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor),
+            ])
+        }
+
+        hidePlaceholder()
+        loadingBar.isHidden = false
+        startLoadingAnimation()
+
+        Task {
+            _ = try? await provider.search(query: currentQuery)
+            await MainActor.run {
+                if let response = provider.currentResponse {
+                    aiResultView.observe(response: response)
+                    // Stop loading when complete
+                    response.$isComplete
+                        .filter { $0 }
+                        .first()
+                        .receive(on: DispatchQueue.main)
+                        .sink { [weak self] _ in
+                            self?.loadingBar.isHidden = true
+                            self?.stopLoadingAnimation()
+                        }
+                        .store(in: &cancellables)
+                }
+                loadingBar.isHidden = true
+                stopLoadingAnimation()
+            }
+        }
+    }
+
     private func showNativeContent(for provider: SearchProvider) {
         webViewController.webView.removeFromSuperview()
         webViewController.stopLoading()
@@ -317,7 +364,9 @@ final class SearchPanelController: NSObject {
 
         settings.lastUsedProvider = provider.id
 
-        if provider.supportsNativeRendering {
+        if let aiProvider = provider as? AISearchProvider {
+            showAIContent(for: aiProvider)
+        } else if provider.supportsNativeRendering {
             showNativeContent(for: provider)
         } else {
             showWebContent(for: provider)
@@ -509,6 +558,7 @@ final class SearchPanelController: NSObject {
     private func cleanup() {
         webViewController.stopLoading()
         clearWebViewCache()
+        aiResultView.clear()
     }
 }
 
