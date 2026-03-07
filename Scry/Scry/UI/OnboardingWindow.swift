@@ -53,6 +53,14 @@ struct OnboardingView: View {
                     granted: permissions.inputMonitoringGranted,
                     action: { permissions.requestInputMonitoring() }
                 )
+
+                permissionStep(
+                    number: 4,
+                    title: "Screen Recording",
+                    description: "Required for screenshot-based text extraction via OCR.",
+                    granted: permissions.screenRecordingGranted,
+                    action: { permissions.requestScreenRecording() }
+                )
             }
             .padding(24)
 

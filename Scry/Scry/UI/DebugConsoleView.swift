@@ -15,6 +15,7 @@ struct DebugConsoleView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     statusRow("Accessibility", permissions.accessibilityGranted)
                     statusRow("Input Monitoring", permissions.inputMonitoringGranted)
+                    statusRow("Screen Recording", permissions.screenRecordingGranted)
                     statusRow("AXIsProcessTrusted()", AXIsProcessTrusted())
                     Divider()
                     keyValue("Trigger method", settings.triggerMethod == .forceClick ? "Force Click" : "Hotkey Only")
