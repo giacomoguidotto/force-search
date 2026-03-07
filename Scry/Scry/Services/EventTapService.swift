@@ -31,10 +31,11 @@ final class EventTapService {
     /// Timestamp of last fired force-click (for debouncing).
     fileprivate var _lastForceClickTime: Date = .distantPast
 
-    /// Cached pressure threshold — read from settings on start() and updated via Combine.
-    fileprivate var cachedPressureThreshold: Double = Constants.Defaults.pressureSensitivity
+    /// Whether the left mouse button is currently held down.
+    fileprivate var _mouseIsDown = false
 
-    private var settingsCancellable: AnyCancellable?
+    /// Whether a force-click was already fired during the current mouse-down.
+    fileprivate var _forceClickFiredForCurrentPress = false
 
     func start() {
         logger.info("start() called — isRunning=\(self.isRunning), triggerMethod=\(String(describing: self.settings.triggerMethod))")
@@ -47,19 +48,17 @@ final class EventTapService {
             return
         }
 
-        // Cache pressure threshold and observe future changes
-        cachedPressureThreshold = settings.pressureSensitivity
-        settingsCancellable = settings.$pressureSensitivity
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newValue in
-                self?.cachedPressureThreshold = newValue
-            }
+        debugLog.log("EventTap", "Creating CGEvent tap for mouse + pressure events...")
 
-        debugLog.log("EventTap", "Creating CGEvent tap for pressure events...")
-
-        // NSEvent.EventType.pressure = 34; no CGEventType equivalent
-        let pressureEventType: CGEventType = CGEventType(rawValue: 34)!
-        let eventMask: CGEventMask = (1 << pressureEventType.rawValue)
+        // Monitor mouse events (reliable) + pressure type 34 (unreliable but worth trying).
+        // Force click detection reads the raw mouseEventPressure field from drag events,
+        // since pure pressure events (type 34) often don't flow through CGEvent taps.
+        let pressureEventType = CGEventType(rawValue: 34)!
+        let eventMask: CGEventMask =
+            (1 << CGEventType.leftMouseDown.rawValue)
+            | (1 << CGEventType.leftMouseDragged.rawValue)
+            | (1 << CGEventType.leftMouseUp.rawValue)
+            | (1 << pressureEventType.rawValue)
 
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -117,12 +116,12 @@ final class EventTapService {
         runLoopSource = nil
         healthCheckTimer?.invalidate()
         healthCheckTimer = nil
-        settingsCancellable?.cancel()
-        settingsCancellable = nil
         isRunning = false
         usingPassiveFallback = false
         os_unfair_lock_lock(&stateLock)
         _previousStage = 0
+        _mouseIsDown = false
+        _forceClickFiredForCurrentPress = false
         os_unfair_lock_unlock(&stateLock)
         debugLog.eventTapStatus = "Stopped"
     }
@@ -130,8 +129,6 @@ final class EventTapService {
     // MARK: - Internal (called from C callback)
 
     fileprivate func handleStageTransition(stage: Int, pressure: Double) {
-        let threshold = cachedPressureThreshold
-
         os_unfair_lock_lock(&stateLock)
         let prevStage = _previousStage
 
@@ -139,17 +136,6 @@ final class EventTapService {
             let now = Date()
             guard now.timeIntervalSince(_lastForceClickTime) > Constants.Timing.debounceCooldown else {
                 debugLog.log("EventTap", "Stage \(prevStage)→\(stage) DEBOUNCED (cooldown)")
-                _previousStage = stage
-                os_unfair_lock_unlock(&stateLock)
-                return
-            }
-            guard pressure >= threshold else {
-                debugLog.log(
-                    "EventTap",
-                    "Stage \(prevStage)→\(stage) BELOW THRESHOLD " +
-                    "(pressure=\(String(format: "%.3f", pressure)), " +
-                    "threshold=\(String(format: "%.3f", threshold)))"
-                )
                 _previousStage = stage
                 os_unfair_lock_unlock(&stateLock)
                 return
@@ -172,20 +158,53 @@ final class EventTapService {
         os_unfair_lock_unlock(&stateLock)
     }
 
-    /// Returns true if the event should be suppressed (native Look Up prevented).
-    fileprivate func shouldSuppress(stage: Int, pressure: Double) -> Bool {
-        let threshold = cachedPressureThreshold
-
+    /// Called from the CGEvent callback for mouse events with a raw pressure value.
+    fileprivate func handleMousePressure(_ rawPressure: Double, type: CGEventType) {
         os_unfair_lock_lock(&stateLock)
-        let prevStage = _previousStage
-        let lastTime = _lastForceClickTime
+
+        if type == .leftMouseDown {
+            _mouseIsDown = true
+            _forceClickFiredForCurrentPress = false
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
+        if type == .leftMouseUp {
+            _mouseIsDown = false
+            _forceClickFiredForCurrentPress = false
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
+        // leftMouseDragged — check if pressure crossed the force-click threshold
+        guard _mouseIsDown, !_forceClickFiredForCurrentPress else {
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
+        let threshold = settings.pressureSensitivity
+        guard rawPressure >= threshold else {
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
+        let now = Date()
+        guard now.timeIntervalSince(_lastForceClickTime) > Constants.Timing.debounceCooldown else {
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
+        _lastForceClickTime = now
+        _forceClickFiredForCurrentPress = true
         os_unfair_lock_unlock(&stateLock)
 
-        if prevStage < 2 && stage >= 2 && pressure >= threshold {
-            let now = Date()
-            return now.timeIntervalSince(lastTime) <= 0.05
+        debugLog.log(
+            "EventTap",
+            "FORCE-CLICK detected via mouse pressure (\(String(format: "%.3f", rawPressure)))"
+        )
+        DispatchQueue.main.async { [weak self] in
+            self?.forceClickPublisher.send(NSEvent.mouseLocation)
         }
-        return false
     }
 
     // MARK: - Private
@@ -195,22 +214,43 @@ final class EventTapService {
             logger.info("startPassiveMonitor: already exists, skipping")
             return
         }
-        logger.info("startPassiveMonitor: registering .pressure global monitor...")
-        let monitor = NSEvent.addGlobalMonitorForEvents(matching: .pressure) { [weak self] event in
+        logger.info("startPassiveMonitor: registering global monitor for pressure + mouse events...")
+        // Note: .leftMouseDragged is NOT allowed in global monitors per Apple docs.
+        let monitor = NSEvent.addGlobalMonitorForEvents(matching: [.pressure, .leftMouseDown, .leftMouseUp]) { [weak self] event in
             guard let self = self else { return }
-            let stage = event.stage
-            let pressure = Double(event.pressure)
 
-            os_unfair_lock_lock(&self.stateLock)
-            let prevStage = self._previousStage
-            os_unfair_lock_unlock(&self.stateLock)
+            switch event.type {
+            case .pressure:
+                let stage = event.stage
+                let pressure = Double(event.pressure)
 
-            logger.info("PASSIVE pressure event: stage=\(stage) pressure=\(pressure)")
-            self.debugLog.log(
-                "Passive",
-                "stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(prevStage))"
-            )
-            self.handleStageTransition(stage: stage, pressure: pressure)
+                os_unfair_lock_lock(&self.stateLock)
+                let prevStage = self._previousStage
+                os_unfair_lock_unlock(&self.stateLock)
+
+                self.debugLog.log(
+                    "Passive",
+                    "pressure stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(prevStage))"
+                )
+                self.handleStageTransition(stage: stage, pressure: pressure)
+
+            case .leftMouseDown:
+                let pressure = Double(event.pressure)
+                self.debugLog.log("Passive", "mouseDown pressure=\(String(format: "%.3f", pressure))")
+                os_unfair_lock_lock(&self.stateLock)
+                self._mouseIsDown = true
+                self._forceClickFiredForCurrentPress = false
+                os_unfair_lock_unlock(&self.stateLock)
+
+            case .leftMouseUp:
+                os_unfair_lock_lock(&self.stateLock)
+                self._mouseIsDown = false
+                self._forceClickFiredForCurrentPress = false
+                os_unfair_lock_unlock(&self.stateLock)
+
+            default:
+                break
+            }
         }
         guard let monitor = monitor else {
             logger.error("startPassiveMonitor: NSEvent.addGlobalMonitorForEvents returned nil!")
@@ -250,22 +290,42 @@ private func eventTapCallback(
     event: CGEvent,
     userInfo: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-    guard let userInfo = userInfo else { return Unmanaged.passRetained(event) }
+    guard let userInfo = userInfo else { return Unmanaged.passUnretained(event) }
     let service = Unmanaged<EventTapService>.fromOpaque(userInfo).takeUnretainedValue()
 
     // Handle tap disabled events
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         service.reEnableTap()
-        return Unmanaged.passRetained(event)
+        return Unmanaged.passUnretained(event)
     }
 
+    // --- Mouse events: read raw pressure from CGEvent field ---
+    if type == .leftMouseDown || type == .leftMouseDragged || type == .leftMouseUp {
+        let rawPressure = event.getDoubleValueField(.mouseEventPressure)
+
+        // Log mouseDown/Up always; mouseDragged only when pressure is notable
+        if type != .leftMouseDragged || rawPressure > 0.01 {
+            service.debugLog.log(
+                "Tap",
+                "mouse(\(type.rawValue)) pressure=\(String(format: "%.3f", rawPressure))"
+            )
+        }
+
+        service.handleMousePressure(rawPressure, type: type)
+
+        // Never suppress mouse events
+        return Unmanaged.passUnretained(event)
+    }
+
+    // --- Pressure events (type 34) — may not arrive, but handle if they do ---
     let pressureEventType = CGEventType(rawValue: 34)!
     guard type == pressureEventType else {
-        return Unmanaged.passRetained(event)
+        return Unmanaged.passUnretained(event)
     }
 
     guard let nsEvent = NSEvent(cgEvent: event) else {
-        return Unmanaged.passRetained(event)
+        service.debugLog.log("Tap", "NSEvent(cgEvent:) returned nil for type 34")
+        return Unmanaged.passUnretained(event)
     }
 
     let stage = nsEvent.stage
@@ -275,28 +335,17 @@ private func eventTapCallback(
     let prevStage = service._previousStage
     os_unfair_lock_unlock(&service.stateLock)
 
-    if stage > 0 || prevStage > 0 {
-        service.debugLog.log(
-            "Pressure",
-            "stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(prevStage))"
-        )
-    }
+    service.debugLog.log(
+        "Tap",
+        "pressure stage=\(stage) pressure=\(String(format: "%.3f", pressure)) prev=\(prevStage)"
+    )
 
-    // Process the transition
     service.handleStageTransition(stage: stage, pressure: pressure)
 
-    // Suppress native Look Up if we're handling this force-click
-    let threshold = service.cachedPressureThreshold
-    if prevStage < 2 && stage >= 2 && pressure >= threshold {
-        os_unfair_lock_lock(&service.stateLock)
-        let lastTime = service._lastForceClickTime
-        os_unfair_lock_unlock(&service.stateLock)
-
-        let now = Date()
-        if now.timeIntervalSince(lastTime) < 0.1 {
-            return nil
-        }
+    // Suppress native Look Up if we just detected a force-click
+    if prevStage < 2 && stage >= 2 {
+        return nil
     }
 
-    return Unmanaged.passRetained(event)
+    return Unmanaged.passUnretained(event)
 }
