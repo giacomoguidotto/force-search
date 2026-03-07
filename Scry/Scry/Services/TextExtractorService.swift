@@ -4,16 +4,56 @@ import NaturalLanguage
 
 final class TextExtractorService {
     private let debugLog = DebugLogStore.shared
+    private let screenshotService = ScreenshotService()
+    private let ocrService = OCRService()
 
-    /// Extracts the currently selected text from the frontmost application.
-    func extractSelectedText() -> String? {
+    /// The last screenshot captured during extraction, for use by the AI provider.
+    private(set) var lastScreenshot: CGImage?
+
+    /// Async extraction pipeline: AX selected text → AX word under cursor → Screenshot + OCR.
+    func extractText(at point: NSPoint? = nil) async -> String? {
+        let cursorPoint = point ?? NSEvent.mouseLocation
+
         // Try AX selected text first (works when user pre-selected text)
+        if let text = extractViaAccessibility(), !text.isEmpty {
+            debugLog.log("TextExtractor", "Got text via Accessibility", level: .debug)
+            // Still capture screenshot for AI if enabled
+            if AppSettings.shared.aiEnabled {
+                captureScreenshot(at: cursorPoint)
+            }
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // Try to get the word under cursor via AX element at position
+        if let text = extractWordUnderCursor() {
+            debugLog.log("TextExtractor", "Got text via word-under-cursor", level: .debug)
+            if AppSettings.shared.aiEnabled {
+                captureScreenshot(at: cursorPoint)
+            }
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        // Fallback: Screenshot + OCR
+        captureScreenshot(at: cursorPoint)
+        if let screenshot = lastScreenshot, let ocrResult = await ocrService.recognizeText(in: screenshot) {
+            let text = ocrResult.wordNearestCenter ?? ocrResult.fullText
+            if !text.isEmpty {
+                debugLog.log("TextExtractor", "Got text via OCR: \"\(text)\"", level: .debug)
+                return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        debugLog.log("TextExtractor", "All extraction methods failed", level: .warning)
+        return nil
+    }
+
+    /// Sync AX-only extraction (for backward compatibility).
+    func extractSelectedText() -> String? {
         if let text = extractViaAccessibility(), !text.isEmpty {
             debugLog.log("TextExtractor", "Got text via Accessibility", level: .debug)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // Try to get the word under cursor via AX element at position
         if let text = extractWordUnderCursor() {
             debugLog.log("TextExtractor", "Got text via word-under-cursor", level: .debug)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -21,6 +61,13 @@ final class TextExtractorService {
 
         debugLog.log("TextExtractor", "All extraction methods failed", level: .warning)
         return nil
+    }
+
+    // MARK: - Screenshot
+
+    private func captureScreenshot(at point: NSPoint) {
+        let size = AppSettings.shared.screenshotRegionSize
+        lastScreenshot = screenshotService.captureRegion(around: point, size: size)
     }
 
     // MARK: - Accessibility
