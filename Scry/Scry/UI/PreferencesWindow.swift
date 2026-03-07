@@ -17,6 +17,10 @@ struct PreferencesView: View {
             ShortcutsPreferencesView()
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
                 .tag(2)
+
+            AIPreferencesView()
+                .tabItem { Label("AI", systemImage: "sparkles") }
+                .tag(3)
         }
         .frame(minWidth: 500, minHeight: 400)
         .toolbar {
