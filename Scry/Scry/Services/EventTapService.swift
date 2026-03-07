@@ -34,6 +34,9 @@ final class EventTapService {
     /// Whether the left mouse button is currently held down.
     fileprivate var _mouseIsDown = false
 
+    /// Timestamp of the current mouse-down (for hold-duration gating).
+    fileprivate var _mouseDownTime: Date = .distantPast
+
     /// Whether a force-click was already fired during the current mouse-down.
     fileprivate var _forceClickFiredForCurrentPress = false
 
@@ -121,6 +124,7 @@ final class EventTapService {
         os_unfair_lock_lock(&stateLock)
         _previousStage = 0
         _mouseIsDown = false
+        _mouseDownTime = .distantPast
         _forceClickFiredForCurrentPress = false
         os_unfair_lock_unlock(&stateLock)
         debugLog.eventTapStatus = "Stopped"
@@ -164,6 +168,7 @@ final class EventTapService {
 
         if type == .leftMouseDown {
             _mouseIsDown = true
+            _mouseDownTime = Date()
             _forceClickFiredForCurrentPress = false
             os_unfair_lock_unlock(&stateLock)
             return
@@ -182,13 +187,20 @@ final class EventTapService {
             return
         }
 
+        // Require a minimum hold duration to distinguish force clicks from normal clicks.
+        // Normal clicks are quick (< 200ms); force clicks require sustained pressure.
+        let now = Date()
+        guard now.timeIntervalSince(_mouseDownTime) >= Constants.Timing.forceClickHoldDelay else {
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
         let threshold = settings.pressureSensitivity
         guard rawPressure >= threshold else {
             os_unfair_lock_unlock(&stateLock)
             return
         }
 
-        let now = Date()
         guard now.timeIntervalSince(_lastForceClickTime) > Constants.Timing.debounceCooldown else {
             os_unfair_lock_unlock(&stateLock)
             return
@@ -235,10 +247,9 @@ final class EventTapService {
                 self.handleStageTransition(stage: stage, pressure: pressure)
 
             case .leftMouseDown:
-                let pressure = Double(event.pressure)
-                self.debugLog.log("Passive", "mouseDown pressure=\(String(format: "%.3f", pressure))")
                 os_unfair_lock_lock(&self.stateLock)
                 self._mouseIsDown = true
+                self._mouseDownTime = Date()
                 self._forceClickFiredForCurrentPress = false
                 os_unfair_lock_unlock(&self.stateLock)
 
@@ -303,11 +314,11 @@ private func eventTapCallback(
     if type == .leftMouseDown || type == .leftMouseDragged || type == .leftMouseUp {
         let rawPressure = event.getDoubleValueField(.mouseEventPressure)
 
-        // Log mouseDown/Up always; mouseDragged only when pressure is notable
-        if type != .leftMouseDragged || rawPressure > 0.01 {
+        // Only log drag events with notable pressure to avoid noise from normal clicks
+        if type == .leftMouseDragged && rawPressure > 0.5 {
             service.debugLog.log(
                 "Tap",
-                "mouse(\(type.rawValue)) pressure=\(String(format: "%.3f", rawPressure))"
+                "drag pressure=\(String(format: "%.3f", rawPressure))"
             )
         }
 
