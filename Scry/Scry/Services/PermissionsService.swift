@@ -7,10 +7,11 @@ final class PermissionsService: ObservableObject {
 
     @Published private(set) var accessibilityGranted: Bool = false
     @Published private(set) var inputMonitoringGranted: Bool = false
+    @Published private(set) var screenRecordingGranted: Bool = false
     @Published private(set) var lookUpConflictDetected: Bool = false
 
     var allPermissionsGranted: Bool {
-        accessibilityGranted && inputMonitoringGranted
+        accessibilityGranted && inputMonitoringGranted && screenRecordingGranted
     }
 
     private var pollTimer: Timer?
@@ -22,6 +23,7 @@ final class PermissionsService: ObservableObject {
     func checkAll() {
         accessibilityGranted = AXIsProcessTrusted()
         inputMonitoringGranted = checkInputMonitoring()
+        screenRecordingGranted = checkScreenRecording()
         lookUpConflictDetected = checkLookUpConflict()
     }
 
@@ -36,6 +38,11 @@ final class PermissionsService: ObservableObject {
     /// Opens System Settings → Trackpad so the user can change Look Up gesture.
     func openTrackpadSettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Trackpad-Settings.extension")!)
+    }
+
+    /// Opens System Settings → Screen Recording so the user can grant permission.
+    func requestScreenRecording() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
     }
 
     /// Prompts for Input Monitoring access and opens the Settings pane.
@@ -63,6 +70,13 @@ final class PermissionsService: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func checkScreenRecording() -> Bool {
+        // CGWindowListCreateImage returns nil when Screen Recording permission is missing
+        let rect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let image = CGWindowListCreateImage(rect, .optionOnScreenOnly, kCGNullWindowID, .bestResolution)
+        return image != nil
+    }
 
     private func checkInputMonitoring() -> Bool {
         // CGPreflightListenEventAccess() returns true if we have input monitoring permission.
