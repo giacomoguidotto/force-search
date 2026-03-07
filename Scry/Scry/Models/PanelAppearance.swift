@@ -64,16 +64,16 @@ enum AIProviderType: String, CaseIterable, Codable {
 
     var defaultModel: String {
         switch self {
-        case .claude: return Constants.AI.defaultClaudeModel
-        case .openai: return Constants.AI.defaultOpenAIModel
-        case .custom: return Constants.AI.defaultOpenAIModel
+        case .claude: return Constants.AIConfig.defaultClaudeModel
+        case .openai: return Constants.AIConfig.defaultOpenAIModel
+        case .custom: return Constants.AIConfig.defaultOpenAIModel
         }
     }
 
     var defaultEndpoint: String {
         switch self {
-        case .claude: return Constants.AI.claudeEndpoint
-        case .openai: return Constants.AI.openAIEndpoint
+        case .claude: return Constants.AIConfig.claudeEndpoint
+        case .openai: return Constants.AIConfig.openAIEndpoint
         case .custom: return ""
         }
     }

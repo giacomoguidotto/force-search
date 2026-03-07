@@ -8,6 +8,7 @@ final class ProviderRegistryTests: XCTestCase {
         XCTAssertNotNil(registry.provider(for: "google"))
         XCTAssertNotNil(registry.provider(for: "duckduckgo"))
         XCTAssertNotNil(registry.provider(for: "wikipedia"))
+        XCTAssertNotNil(registry.provider(for: "ai"))
     }
 
     func testGoogleProviderURL() {
