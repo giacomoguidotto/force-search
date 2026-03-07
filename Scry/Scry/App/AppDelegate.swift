@@ -67,7 +67,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     guard let query = query, !query.isEmpty else {
       debugLog.log("Search", "No text extracted — aborting")
-      showNoTextFeedback()
       return
     }
 
@@ -83,16 +82,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   // MARK: - Private
-
-  private func showNoTextFeedback() {
-    let alert = NSAlert()
-    alert.messageText = "No Text Selected"
-    alert.informativeText = "Select some text and try again."
-    alert.alertStyle = .informational
-    alert.addButton(withTitle: "OK")
-    // Show briefly as a non-modal floating notification-style alert
-    alert.runModal()
-  }
 
   private func setupServices() {
     // Event tap for force touch
