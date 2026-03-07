@@ -40,6 +40,13 @@ final class EventTapService {
     /// Whether a force-click was already fired during the current mouse-down.
     fileprivate var _forceClickFiredForCurrentPress = false
 
+    /// Mouse position at the start of the current press (for drag distance gating).
+    fileprivate var _mouseDownLocation: CGPoint = .zero
+
+    /// Maximum distance (points) the cursor may move from the initial click and still
+    /// count as a force-click.  Any larger movement is treated as a drag.
+    private static let maxForceClickDrift: CGFloat = 10
+
     func start() {
         logger.info("start() called — isRunning=\(self.isRunning), triggerMethod=\(String(describing: self.settings.triggerMethod))")
         guard !isRunning else {
@@ -126,6 +133,7 @@ final class EventTapService {
         _mouseIsDown = false
         _mouseDownTime = .distantPast
         _forceClickFiredForCurrentPress = false
+        _mouseDownLocation = .zero
         os_unfair_lock_unlock(&stateLock)
         debugLog.eventTapStatus = "Stopped"
     }
@@ -163,13 +171,14 @@ final class EventTapService {
     }
 
     /// Called from the CGEvent callback for mouse events with a raw pressure value.
-    fileprivate func handleMousePressure(_ rawPressure: Double, type: CGEventType) {
+    fileprivate func handleMousePressure(_ rawPressure: Double, type: CGEventType, location: CGPoint) {
         os_unfair_lock_lock(&stateLock)
 
         if type == .leftMouseDown {
             _mouseIsDown = true
             _mouseDownTime = Date()
             _forceClickFiredForCurrentPress = false
+            _mouseDownLocation = location
             os_unfair_lock_unlock(&stateLock)
             return
         }
@@ -191,6 +200,18 @@ final class EventTapService {
         // Normal clicks are quick (< 200ms); force clicks require sustained pressure.
         let now = Date()
         guard now.timeIntervalSince(_mouseDownTime) >= Constants.Timing.forceClickHoldDelay else {
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
+        // Reject if the cursor has moved too far from the initial click — this is a drag,
+        // not a force-click.  Normal trackpad drags report pressure=1.0 which would
+        // otherwise false-positive here.
+        let currentLocation = location
+        let dx = currentLocation.x - _mouseDownLocation.x
+        let dy = currentLocation.y - _mouseDownLocation.y
+        let drift = sqrt(dx * dx + dy * dy)
+        guard drift <= Self.maxForceClickDrift else {
             os_unfair_lock_unlock(&stateLock)
             return
         }
@@ -324,7 +345,7 @@ private func eventTapCallback(
             )
         }
 
-        service.handleMousePressure(rawPressure, type: type)
+        service.handleMousePressure(rawPressure, type: type, location: event.location)
 
         // Never suppress mouse events
         return Unmanaged.passUnretained(event)
