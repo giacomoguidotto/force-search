@@ -43,11 +43,11 @@ final class EventTapService {
     func start() {
         logger.info("start() called — isRunning=\(self.isRunning), triggerMethod=\(String(describing: self.settings.triggerMethod))")
         guard !isRunning else {
-            debugLog.log("EventTap", "start() called but already running")
+            debugLog.log("EventTap", "start() called but already running", level: .debug)
             return
         }
         guard settings.triggerMethod == .forceClick else {
-            debugLog.log("EventTap", "start() skipped — trigger method is not forceClick")
+            debugLog.log("EventTap", "start() skipped — trigger method is not forceClick", level: .debug)
             return
         }
 
@@ -71,7 +71,7 @@ final class EventTapService {
             callback: eventTapCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else {
-            debugLog.log("EventTap", "CGEvent.tapCreate FAILED — falling back to passive monitor")
+            debugLog.log("EventTap", "CGEvent.tapCreate FAILED — falling back to passive monitor", level: .warning)
             // Fallback: use passive event monitor (cannot suppress native Look Up)
             startPassiveMonitor()
             return
@@ -139,7 +139,7 @@ final class EventTapService {
         if prevStage < 2 && stage >= 2 {
             let now = Date()
             guard now.timeIntervalSince(_lastForceClickTime) > Constants.Timing.debounceCooldown else {
-                debugLog.log("EventTap", "Stage \(prevStage)→\(stage) DEBOUNCED (cooldown)")
+                debugLog.log("EventTap", "Stage \(prevStage)→\(stage) DEBOUNCED (cooldown)", level: .debug)
                 _previousStage = stage
                 os_unfair_lock_unlock(&stateLock)
                 return
@@ -242,7 +242,8 @@ final class EventTapService {
 
                 self.debugLog.log(
                     "Passive",
-                    "pressure stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(prevStage))"
+                    "pressure stage=\(stage) pressure=\(String(format: "%.3f", pressure)) (prev=\(prevStage))",
+                    level: .debug
                 )
                 self.handleStageTransition(stage: stage, pressure: pressure)
 
@@ -265,7 +266,7 @@ final class EventTapService {
         }
         guard let monitor = monitor else {
             logger.error("startPassiveMonitor: NSEvent.addGlobalMonitorForEvents returned nil!")
-            debugLog.log("EventTap", "WARNING: passive monitor failed to register (nil returned)")
+            debugLog.log("EventTap", "Passive monitor failed to register (nil returned)", level: .error)
             return
         }
         passiveMonitor = monitor
@@ -282,7 +283,7 @@ final class EventTapService {
     fileprivate func healthCheck() {
         guard let tap = eventTap else { return }
         if !CGEvent.tapIsEnabled(tap: tap) {
-            debugLog.log("EventTap", "Health check: tap was disabled, re-enabling")
+            debugLog.log("EventTap", "Health check: tap was disabled, re-enabling", level: .warning)
             CGEvent.tapEnable(tap: tap, enable: true)
         }
     }
@@ -318,7 +319,8 @@ private func eventTapCallback(
         if type == .leftMouseDragged && rawPressure > 0.5 {
             service.debugLog.log(
                 "Tap",
-                "drag pressure=\(String(format: "%.3f", rawPressure))"
+                "drag pressure=\(String(format: "%.3f", rawPressure))",
+                level: .debug
             )
         }
 
@@ -335,7 +337,7 @@ private func eventTapCallback(
     }
 
     guard let nsEvent = NSEvent(cgEvent: event) else {
-        service.debugLog.log("Tap", "NSEvent(cgEvent:) returned nil for type 34")
+        service.debugLog.log("Tap", "NSEvent(cgEvent:) returned nil for type 34", level: .warning)
         return Unmanaged.passUnretained(event)
     }
 
@@ -348,7 +350,8 @@ private func eventTapCallback(
 
     service.debugLog.log(
         "Tap",
-        "pressure stage=\(stage) pressure=\(String(format: "%.3f", pressure)) prev=\(prevStage)"
+        "pressure stage=\(stage) pressure=\(String(format: "%.3f", pressure)) prev=\(prevStage)",
+        level: .debug
     )
 
     service.handleStageTransition(stage: stage, pressure: pressure)

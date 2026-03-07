@@ -61,17 +61,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func performSearch(at point: NSPoint?) {
     let debugLog = DebugLogStore.shared
-    debugLog.log("Search", "performSearch called")
+    debugLog.log("Search", "performSearch called", level: .debug)
 
     let query = textExtractorService?.extractSelectedText()
 
     guard let query = query, !query.isEmpty else {
-      debugLog.log("Search", "No text extracted — aborting")
+      debugLog.log("Search", "No text extracted — aborting", level: .warning)
       return
     }
 
     let truncatedQuery = String(query.prefix(settings.maxQueryLength))
-    debugLog.log("Search", "Extracted text: \"\(truncatedQuery)\"")
+    debugLog.log("Search", "Extracted text: \"\(truncatedQuery)\"", level: .info)
 
     if searchPanelController == nil {
       searchPanelController = SearchPanelController()
