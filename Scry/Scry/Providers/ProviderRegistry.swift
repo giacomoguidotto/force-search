@@ -39,10 +39,18 @@ final class ProviderRegistry {
         }
         let settings = AppSettings.shared
         let enabledSet = Set(settings.enabledProviders)
-        let result = settings.providerOrder.compactMap { id -> SearchProvider? in
+        var result = settings.providerOrder.compactMap { id -> SearchProvider? in
             guard enabledSet.contains(id) else { return nil }
+            // Skip AI from the normal list — it's appended conditionally below
+            if id == "ai" { return nil }
             return providers[id]
         }
+
+        // Append AI provider if enabled and configured
+        if settings.aiEnabled, !settings.aiAPIKey.isEmpty {
+            result.append(aiProvider)
+        }
+
         cachedEnabledProviders = result
         return result
     }
@@ -54,16 +62,28 @@ final class ProviderRegistry {
 
     // MARK: - Private
 
+    private let aiProvider = AISearchProvider()
+
+    /// Returns the AI provider instance (for setting screenshot before search).
+    var aiSearchProvider: AISearchProvider { aiProvider }
+
     private func registerDefaults() {
         register(GoogleSearchProvider())
         register(DuckDuckGoSearchProvider())
         register(WikipediaProvider())
+        register(aiProvider)
     }
 
     private func observeSettings() {
         let settings = AppSettings.shared
         settings.$enabledProviders
             .merge(with: settings.$providerOrder)
+            .sink { [weak self] _ in
+                self?.cachedEnabledProviders = nil
+            }
+            .store(in: &cancellables)
+
+        settings.$aiEnabled
             .sink { [weak self] _ in
                 self?.cachedEnabledProviders = nil
             }
