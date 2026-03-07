@@ -63,22 +63,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let debugLog = DebugLogStore.shared
     debugLog.log("Search", "performSearch called", level: .debug)
 
-    let query = textExtractorService?.extractSelectedText()
-
-    guard let query = query, !query.isEmpty else {
-      debugLog.log("Search", "No text extracted — aborting", level: .warning)
-      return
-    }
-
-    let truncatedQuery = String(query.prefix(settings.maxQueryLength))
-    debugLog.log("Search", "Extracted text: \"\(truncatedQuery)\"", level: .info)
-
-    if searchPanelController == nil {
-      searchPanelController = SearchPanelController()
-    }
-
     let position = point ?? NSEvent.mouseLocation
-    searchPanelController?.show(query: truncatedQuery, at: position)
+
+    Task { @MainActor in
+      let query = await textExtractorService?.extractText(at: position)
+
+      guard let query = query, !query.isEmpty else {
+        debugLog.log("Search", "No text extracted — aborting", level: .warning)
+        return
+      }
+
+      let truncatedQuery = String(query.prefix(settings.maxQueryLength))
+      debugLog.log("Search", "Extracted text: \"\(truncatedQuery)\"", level: .info)
+
+      // Pass screenshot to AI provider before showing panel
+      if let screenshot = textExtractorService?.lastScreenshot {
+        ProviderRegistry.shared.aiSearchProvider.screenshotImage = screenshot
+      }
+
+      if searchPanelController == nil {
+        searchPanelController = SearchPanelController()
+      }
+
+      searchPanelController?.show(query: truncatedQuery, at: position)
+    }
   }
 
   // MARK: - Private
