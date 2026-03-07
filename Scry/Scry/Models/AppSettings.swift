@@ -123,7 +123,7 @@ final class AppSettings: ObservableObject {
     didSet { defaults.set(aiAPIKey, forKey: Keys.aiAPIKey) }
   }
 
-  @Published var aiModel: String = Constants.AI.defaultClaudeModel {
+  @Published var aiModel: String = Constants.AIConfig.defaultClaudeModel {
     didSet { defaults.set(aiModel, forKey: Keys.aiModel) }
   }
 
@@ -222,21 +222,19 @@ final class AppSettings: ObservableObject {
       hasCompletedOnboarding = d.bool(forKey: Keys.hasCompletedOnboarding)
     }
 
+    loadAISettings(from: d)
+  }
+
+  private func loadAISettings(from d: UserDefaults) {
     if d.object(forKey: Keys.aiEnabled) != nil {
       aiEnabled = d.bool(forKey: Keys.aiEnabled)
     }
     if let raw = d.string(forKey: Keys.aiProviderType), let val = AIProviderType(rawValue: raw) {
       aiProviderType = val
     }
-    if let val = d.string(forKey: Keys.aiAPIKey) {
-      aiAPIKey = val
-    }
-    if let val = d.string(forKey: Keys.aiModel), !val.isEmpty {
-      aiModel = val
-    }
-    if let val = d.string(forKey: Keys.aiCustomEndpoint) {
-      aiCustomEndpoint = val
-    }
+    if let val = d.string(forKey: Keys.aiAPIKey) { aiAPIKey = val }
+    if let val = d.string(forKey: Keys.aiModel), !val.isEmpty { aiModel = val }
+    if let val = d.string(forKey: Keys.aiCustomEndpoint) { aiCustomEndpoint = val }
     if d.object(forKey: Keys.screenshotRegionSize) != nil {
       screenshotRegionSize = d.double(forKey: Keys.screenshotRegionSize)
     }
@@ -312,6 +310,11 @@ final class AppSettings: ObservableObject {
     if let raw = dict[Keys.menuBarIconStyle] as? String, let val = MenuBarIconStyle(rawValue: raw) {
       menuBarIconStyle = val
     }
+    importAISettings(from: dict)
+    return true
+  }
+
+  private func importAISettings(from dict: [String: Any]) {
     if let val = dict[Keys.aiEnabled] as? Bool { aiEnabled = val }
     if let raw = dict[Keys.aiProviderType] as? String, let val = AIProviderType(rawValue: raw) {
       aiProviderType = val
@@ -320,8 +323,6 @@ final class AppSettings: ObservableObject {
     if let val = dict[Keys.aiModel] as? String { aiModel = val }
     if let val = dict[Keys.aiCustomEndpoint] as? String { aiCustomEndpoint = val }
     if let val = dict[Keys.screenshotRegionSize] as? CGFloat { screenshotRegionSize = val }
-
-    return true
   }
 
   /// The effective provider ID to use when opening a new panel.

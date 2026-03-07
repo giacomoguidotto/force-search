@@ -6,8 +6,6 @@ final class SearchPanelController: NSObject {
     private let settings = AppSettings.shared
     private let registry = ProviderRegistry.shared
     private var cancellables = Set<AnyCancellable>()
-
-    // UI components
     private var searchBar: SearchBarView!
     private var tabBar: ProviderTabBar!
     private var webViewController: SearchWebViewController!
@@ -17,16 +15,11 @@ final class SearchPanelController: NSObject {
     private var hintBar: NSView!
     private var contentContainer: NSView!
     private var placeholderLabel: NSTextField!
-
-    // State
     private var currentQuery = ""
     private var currentProviders: [SearchProvider] = []
     private var selectedProviderIndex = 0
     private var clickOutsideMonitor: Any?
-
-    /// Cached web view controllers per provider ID, to avoid re-fetching when switching tabs.
     private var webViewCache: [String: SearchWebViewController] = [:]
-    /// The query that the cached pages were loaded with. Cache is invalidated on new queries.
     private var cachedQuery = ""
 
     func show(query: String, at point: NSPoint) {
@@ -88,19 +81,16 @@ final class SearchPanelController: NSObject {
 
         guard let contentView = panel.contentView else { return }
 
-        // Search bar
         searchBar = SearchBarView()
         searchBar.delegate = self
         searchBar.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(searchBar)
 
-        // Tab bar
         tabBar = ProviderTabBar()
         tabBar.delegate = self
         tabBar.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(tabBar)
 
-        // Loading bar
         loadingBar = NSView()
         loadingBar.wantsLayer = true
         loadingBar.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
@@ -108,12 +98,10 @@ final class SearchPanelController: NSObject {
         loadingBar.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(loadingBar)
 
-        // Content container
         contentContainer = NSView()
         contentContainer.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(contentContainer)
 
-        // Placeholder label (shown while content is loading)
         placeholderLabel = NSTextField(labelWithString: "Searching…")
         placeholderLabel.font = .systemFont(ofSize: 14, weight: .medium)
         placeholderLabel.textColor = .tertiaryLabelColor
@@ -125,22 +113,16 @@ final class SearchPanelController: NSObject {
             placeholderLabel.centerYAnchor.constraint(equalTo: contentContainer.centerYAnchor),
         ])
 
-        // Web view
         webViewController = SearchWebViewController()
         webViewController.delegate = self
         webViewController.webView.translatesAutoresizingMaskIntoConstraints = false
-        // Pre-warm WebKit process to avoid cold-start latency on first search
         webViewController.webView.loadHTMLString("", baseURL: nil)
 
-        // Native result view
         nativeResultView = NativeResultView()
         nativeResultView.translatesAutoresizingMaskIntoConstraints = false
-
-        // AI result view
         aiResultView = AIResultView()
         aiResultView.translatesAutoresizingMaskIntoConstraints = false
 
-        // Hint bar
         hintBar = createHintBar()
         hintBar.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(hintBar)
@@ -189,15 +171,13 @@ final class SearchPanelController: NSObject {
         stack.spacing = 16
         stack.translatesAutoresizingMaskIntoConstraints = false
         for (key, label) in [("⎋", "Close"), ("⌘↩", "Open in Browser"), ("⌘C", "Copy URL")] {
-            let keyLabel = NSTextField(labelWithString: key)
-            keyLabel.font = .monospacedSystemFont(ofSize: 10, weight: .medium)
-            keyLabel.textColor = .tertiaryLabelColor
-            let descLabel = NSTextField(labelWithString: label)
-            descLabel.font = .systemFont(ofSize: 10)
-            descLabel.textColor = .tertiaryLabelColor
-            let pair = NSStackView(views: [keyLabel, descLabel])
-            pair.spacing = 4
-            stack.addArrangedSubview(pair)
+            let k = NSTextField(labelWithString: key)
+            k.font = .monospacedSystemFont(ofSize: 10, weight: .medium)
+            k.textColor = .tertiaryLabelColor
+            let d = NSTextField(labelWithString: label)
+            d.font = .systemFont(ofSize: 10)
+            d.textColor = .tertiaryLabelColor
+            stack.addArrangedSubview({ let p = NSStackView(views: [k, d]); p.spacing = 4; return p }())
         }
         bar.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -208,6 +188,18 @@ final class SearchPanelController: NSObject {
     }
 
     // MARK: - Content Display
+
+    private func embedInContentContainer(_ view: NSView) {
+        guard view.superview !== contentContainer else { return }
+        view.removeFromSuperview()
+        contentContainer.addSubview(view)
+        NSLayoutConstraint.activate([
+            view.topAnchor.constraint(equalTo: contentContainer.topAnchor),
+            view.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
+            view.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
+            view.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor),
+        ])
+    }
 
     private func showPlaceholder(_ text: String) {
         placeholderLabel.stringValue = text
@@ -220,6 +212,7 @@ final class SearchPanelController: NSObject {
 
     private func showWebContent(for provider: SearchProvider) {
         nativeResultView.removeFromSuperview()
+        aiResultView.removeFromSuperview()
 
         // Invalidate cache if query changed
         if cachedQuery != currentQuery {
@@ -246,16 +239,7 @@ final class SearchPanelController: NSObject {
 
         let wv = controller.webView
         wv.translatesAutoresizingMaskIntoConstraints = false
-        if wv.superview !== contentContainer {
-            wv.removeFromSuperview()
-            contentContainer.addSubview(wv)
-            NSLayoutConstraint.activate([
-                wv.topAnchor.constraint(equalTo: contentContainer.topAnchor),
-                wv.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
-                wv.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
-                wv.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor),
-            ])
-        }
+        embedInContentContainer(wv)
 
         // If this page was already loaded for the same query, skip the network request
         if controller.currentURL != nil && cachedQuery == currentQuery {
@@ -278,17 +262,7 @@ final class SearchPanelController: NSObject {
         webViewController.webView.removeFromSuperview()
         webViewController.stopLoading()
         nativeResultView.removeFromSuperview()
-
-        if aiResultView.superview !== contentContainer {
-            aiResultView.removeFromSuperview()
-            contentContainer.addSubview(aiResultView)
-            NSLayoutConstraint.activate([
-                aiResultView.topAnchor.constraint(equalTo: contentContainer.topAnchor),
-                aiResultView.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
-                aiResultView.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
-                aiResultView.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor),
-            ])
-        }
+        embedInContentContainer(aiResultView)
 
         hidePlaceholder()
         loadingBar.isHidden = false
@@ -299,16 +273,6 @@ final class SearchPanelController: NSObject {
             await MainActor.run {
                 if let response = provider.currentResponse {
                     aiResultView.observe(response: response)
-                    // Stop loading when complete
-                    response.$isComplete
-                        .filter { $0 }
-                        .first()
-                        .receive(on: DispatchQueue.main)
-                        .sink { [weak self] _ in
-                            self?.loadingBar.isHidden = true
-                            self?.stopLoadingAnimation()
-                        }
-                        .store(in: &cancellables)
                 }
                 loadingBar.isHidden = true
                 stopLoadingAnimation()
@@ -319,17 +283,8 @@ final class SearchPanelController: NSObject {
     private func showNativeContent(for provider: SearchProvider) {
         webViewController.webView.removeFromSuperview()
         webViewController.stopLoading()
-
-        if nativeResultView.superview !== contentContainer {
-            nativeResultView.removeFromSuperview()
-            contentContainer.addSubview(nativeResultView)
-            NSLayoutConstraint.activate([
-                nativeResultView.topAnchor.constraint(equalTo: contentContainer.topAnchor),
-                nativeResultView.leadingAnchor.constraint(equalTo: contentContainer.leadingAnchor),
-                nativeResultView.trailingAnchor.constraint(equalTo: contentContainer.trailingAnchor),
-                nativeResultView.bottomAnchor.constraint(equalTo: contentContainer.bottomAnchor),
-            ])
-        }
+        aiResultView.removeFromSuperview()
+        embedInContentContainer(nativeResultView)
 
         hidePlaceholder()
         loadingBar.isHidden = false
@@ -442,13 +397,11 @@ final class SearchPanelController: NSObject {
         anim.repeatCount = .infinity
         loadingBar.layer?.add(anim, forKey: "loading")
     }
-
     private func stopLoadingAnimation() {
         loadingBar.layer?.removeAnimation(forKey: "loading")
     }
 
     // MARK: - Click Outside / Key Monitor
-
     private var keyMonitor: Any?
 
     private func startClickOutsideMonitor() {
@@ -464,10 +417,8 @@ final class SearchPanelController: NSObject {
     }
 
     private func stopClickOutsideMonitor() {
-        if let monitor = clickOutsideMonitor {
-            NSEvent.removeMonitor(monitor)
-            clickOutsideMonitor = nil
-        }
+        clickOutsideMonitor.map { NSEvent.removeMonitor($0) }
+        clickOutsideMonitor = nil
     }
 
     private func startKeyMonitor() {

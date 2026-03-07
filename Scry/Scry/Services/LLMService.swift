@@ -50,9 +50,9 @@ final class LLMService {
         let endpoint: String
         switch providerType {
         case .claude:
-            endpoint = Constants.AI.claudeEndpoint
+            endpoint = Constants.AIConfig.claudeEndpoint
         case .openai:
-            endpoint = Constants.AI.openAIEndpoint
+            endpoint = Constants.AIConfig.openAIEndpoint
         case .custom:
             endpoint = settings.aiCustomEndpoint
         }
@@ -67,14 +67,14 @@ final class LLMService {
 
         response.task = Task {
             do {
-                let request = try buildRequest(
+                let request = try buildRequest(RequestConfig(
                     url: url,
                     providerType: providerType,
                     model: model,
                     apiKey: apiKey,
                     imageBase64: imageData,
                     userPrompt: userPrompt
-                )
+                ))
 
                 let (bytes, httpResponse) = try await URLSession.shared.bytes(for: request)
 
@@ -118,28 +118,30 @@ final class LLMService {
 
     // MARK: - Request Building
 
-    private func buildRequest(
-        url: URL,
-        providerType: AIProviderType,
-        model: String,
-        apiKey: String,
-        imageBase64: String,
-        userPrompt: String
-    ) throws -> URLRequest {
-        var request = URLRequest(url: url)
+    private struct RequestConfig {
+        let url: URL
+        let providerType: AIProviderType
+        let model: String
+        let apiKey: String
+        let imageBase64: String
+        let userPrompt: String
+    }
+
+    private func buildRequest(_ config: RequestConfig) throws -> URLRequest {
+        var request = URLRequest(url: config.url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let body: Data
 
-        switch providerType {
+        switch config.providerType {
         case .claude:
-            request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            request.setValue(config.apiKey, forHTTPHeaderField: "x-api-key")
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
 
             let payload: [String: Any] = [
-                "model": model,
-                "max_tokens": Constants.AI.maxTokens,
+                "model": config.model,
+                "max_tokens": Constants.AIConfig.maxTokens,
                 "stream": true,
                 "system": Self.systemPrompt,
                 "messages": [
@@ -151,12 +153,12 @@ final class LLMService {
                                 "source": [
                                     "type": "base64",
                                     "media_type": "image/jpeg",
-                                    "data": imageBase64,
+                                    "data": config.imageBase64,
                                 ],
                             ],
                             [
                                 "type": "text",
-                                "text": userPrompt,
+                                "text": config.userPrompt,
                             ],
                         ],
                     ],
@@ -165,11 +167,11 @@ final class LLMService {
             body = try JSONSerialization.data(withJSONObject: payload)
 
         case .openai, .custom:
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
 
             let payload: [String: Any] = [
-                "model": model,
-                "max_tokens": Constants.AI.maxTokens,
+                "model": config.model,
+                "max_tokens": Constants.AIConfig.maxTokens,
                 "stream": true,
                 "messages": [
                     [
@@ -182,12 +184,12 @@ final class LLMService {
                             [
                                 "type": "image_url",
                                 "image_url": [
-                                    "url": "data:image/jpeg;base64,\(imageBase64)",
+                                    "url": "data:image/jpeg;base64,\(config.imageBase64)",
                                 ],
                             ],
                             [
                                 "type": "text",
-                                "text": userPrompt,
+                                "text": config.userPrompt,
                             ],
                         ],
                     ],

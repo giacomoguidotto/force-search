@@ -32,7 +32,7 @@ enum Constants {
         static let maxRegionSize: CGFloat = 600
     }
 
-    enum AI {
+    enum AIConfig {
         static let defaultClaudeModel = "claude-sonnet-4-20250514"
         static let defaultOpenAIModel = "gpt-4o"
         static let claudeEndpoint = "https://api.anthropic.com/v1/messages"
