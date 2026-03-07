@@ -49,6 +49,36 @@ enum LinkTarget: String, CaseIterable, Codable {
     }
 }
 
+enum AIProviderType: String, CaseIterable, Codable {
+    case claude
+    case openai
+    case custom
+
+    var displayName: String {
+        switch self {
+        case .claude: return "Claude (Anthropic)"
+        case .openai: return "OpenAI"
+        case .custom: return "Custom (OpenAI-compatible)"
+        }
+    }
+
+    var defaultModel: String {
+        switch self {
+        case .claude: return Constants.AI.defaultClaudeModel
+        case .openai: return Constants.AI.defaultOpenAIModel
+        case .custom: return Constants.AI.defaultOpenAIModel
+        }
+    }
+
+    var defaultEndpoint: String {
+        switch self {
+        case .claude: return Constants.AI.claudeEndpoint
+        case .openai: return Constants.AI.openAIEndpoint
+        case .custom: return ""
+        }
+    }
+}
+
 enum MenuBarIconStyle: String, CaseIterable, Codable {
     case magnifyingGlass
     case spark

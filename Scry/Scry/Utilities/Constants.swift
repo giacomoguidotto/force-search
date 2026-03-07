@@ -26,6 +26,20 @@ enum Constants {
         static let maxQueryLength = 200
     }
 
+    enum Screenshot {
+        static let defaultRegionSize: CGFloat = 300
+        static let minRegionSize: CGFloat = 150
+        static let maxRegionSize: CGFloat = 600
+    }
+
+    enum AI {
+        static let defaultClaudeModel = "claude-sonnet-4-20250514"
+        static let defaultOpenAIModel = "gpt-4o"
+        static let claudeEndpoint = "https://api.anthropic.com/v1/messages"
+        static let openAIEndpoint = "https://api.openai.com/v1/chat/completions"
+        static let maxTokens = 1024
+    }
+
     enum Defaults {
         static let pressureSensitivity: Double = 0.8
         static let defaultProvider = "google"
@@ -56,5 +70,11 @@ enum Constants {
         static let showMenuBarIcon = "showMenuBarIcon"
         static let menuBarIconStyle = "menuBarIconStyle"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        static let aiEnabled = "aiEnabled"
+        static let aiProviderType = "aiProviderType"
+        static let aiAPIKey = "aiAPIKey"
+        static let aiModel = "aiModel"
+        static let aiCustomEndpoint = "aiCustomEndpoint"
+        static let screenshotRegionSize = "screenshotRegionSize"
     }
 }

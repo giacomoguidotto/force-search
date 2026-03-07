@@ -109,6 +109,32 @@ final class AppSettings: ObservableObject {
     didSet { defaults.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
   }
 
+  // MARK: - AI
+
+  @Published var aiEnabled: Bool = false {
+    didSet { defaults.set(aiEnabled, forKey: Keys.aiEnabled) }
+  }
+
+  @Published var aiProviderType: AIProviderType = .claude {
+    didSet { defaults.set(aiProviderType.rawValue, forKey: Keys.aiProviderType) }
+  }
+
+  @Published var aiAPIKey: String = "" {
+    didSet { defaults.set(aiAPIKey, forKey: Keys.aiAPIKey) }
+  }
+
+  @Published var aiModel: String = Constants.AI.defaultClaudeModel {
+    didSet { defaults.set(aiModel, forKey: Keys.aiModel) }
+  }
+
+  @Published var aiCustomEndpoint: String = "" {
+    didSet { defaults.set(aiCustomEndpoint, forKey: Keys.aiCustomEndpoint) }
+  }
+
+  @Published var screenshotRegionSize: CGFloat = Constants.Screenshot.defaultRegionSize {
+    didSet { defaults.set(screenshotRegionSize, forKey: Keys.screenshotRegionSize) }
+  }
+
   // MARK: - Init
 
   private typealias Keys = Constants.UserDefaultsKeys
@@ -195,6 +221,25 @@ final class AppSettings: ObservableObject {
     if d.object(forKey: Keys.hasCompletedOnboarding) != nil {
       hasCompletedOnboarding = d.bool(forKey: Keys.hasCompletedOnboarding)
     }
+
+    if d.object(forKey: Keys.aiEnabled) != nil {
+      aiEnabled = d.bool(forKey: Keys.aiEnabled)
+    }
+    if let raw = d.string(forKey: Keys.aiProviderType), let val = AIProviderType(rawValue: raw) {
+      aiProviderType = val
+    }
+    if let val = d.string(forKey: Keys.aiAPIKey) {
+      aiAPIKey = val
+    }
+    if let val = d.string(forKey: Keys.aiModel), !val.isEmpty {
+      aiModel = val
+    }
+    if let val = d.string(forKey: Keys.aiCustomEndpoint) {
+      aiCustomEndpoint = val
+    }
+    if d.object(forKey: Keys.screenshotRegionSize) != nil {
+      screenshotRegionSize = d.double(forKey: Keys.screenshotRegionSize)
+    }
   }
 
   // MARK: - Export / Import
@@ -222,6 +267,12 @@ final class AppSettings: ObservableObject {
       Keys.launchAtLogin: launchAtLogin,
       Keys.showMenuBarIcon: showMenuBarIcon,
       Keys.menuBarIconStyle: menuBarIconStyle.rawValue,
+      Keys.aiEnabled: aiEnabled,
+      Keys.aiProviderType: aiProviderType.rawValue,
+      Keys.aiAPIKey: aiAPIKey,
+      Keys.aiModel: aiModel,
+      Keys.aiCustomEndpoint: aiCustomEndpoint,
+      Keys.screenshotRegionSize: screenshotRegionSize,
     ]
     return try? JSONSerialization.data(
       withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
@@ -261,6 +312,14 @@ final class AppSettings: ObservableObject {
     if let raw = dict[Keys.menuBarIconStyle] as? String, let val = MenuBarIconStyle(rawValue: raw) {
       menuBarIconStyle = val
     }
+    if let val = dict[Keys.aiEnabled] as? Bool { aiEnabled = val }
+    if let raw = dict[Keys.aiProviderType] as? String, let val = AIProviderType(rawValue: raw) {
+      aiProviderType = val
+    }
+    if let val = dict[Keys.aiAPIKey] as? String { aiAPIKey = val }
+    if let val = dict[Keys.aiModel] as? String { aiModel = val }
+    if let val = dict[Keys.aiCustomEndpoint] as? String { aiCustomEndpoint = val }
+    if let val = dict[Keys.screenshotRegionSize] as? CGFloat { screenshotRegionSize = val }
 
     return true
   }
