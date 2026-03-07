@@ -9,23 +9,23 @@ final class TextExtractorService {
     func extractSelectedText() -> String? {
         // Try AX selected text first
         if let text = extractViaAccessibility(), !text.isEmpty {
-            debugLog.log("TextExtractor", "Got text via Accessibility")
+            debugLog.log("TextExtractor", "Got text via Accessibility", level: .debug)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         // Fallback: try word under cursor via AX element at position
         if let text = extractWordUnderCursor() {
-            debugLog.log("TextExtractor", "Got text via word-under-cursor")
+            debugLog.log("TextExtractor", "Got text via word-under-cursor", level: .debug)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         // Fallback: simulate Cmd+C and read clipboard
         if let text = extractViaClipboard() {
-            debugLog.log("TextExtractor", "Got text via clipboard fallback")
+            debugLog.log("TextExtractor", "Got text via clipboard fallback", level: .debug)
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        debugLog.log("TextExtractor", "All extraction methods failed")
+        debugLog.log("TextExtractor", "All extraction methods failed", level: .warning)
         return nil
     }
 
@@ -33,16 +33,16 @@ final class TextExtractorService {
 
     private func extractViaAccessibility() -> String? {
         guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-            debugLog.log("TextExtractor", "AX: no frontmost app")
+            debugLog.log("TextExtractor", "AX: no frontmost app", level: .debug)
             return nil
         }
 
         let bundleID = frontApp.bundleIdentifier ?? "unknown"
-        debugLog.log("TextExtractor", "AX: frontmost app = \(bundleID) (pid \(frontApp.processIdentifier))")
+        debugLog.log("TextExtractor", "AX: frontmost app = \(bundleID) (pid \(frontApp.processIdentifier))", level: .debug)
 
         // Skip if Scry itself is frontmost — we won't have selected text in our own windows
         if frontApp.bundleIdentifier == Bundle.main.bundleIdentifier {
-            debugLog.log("TextExtractor", "AX: frontmost is Scry, skipping")
+            debugLog.log("TextExtractor", "AX: frontmost is Scry, skipping", level: .debug)
             return nil
         }
 
@@ -52,7 +52,7 @@ final class TextExtractorService {
         var focusedValue: AnyObject?
         let focusResult = AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedValue)
         guard focusResult == .success else {
-            debugLog.log("TextExtractor", "AX: failed to get focused element (error \(focusResult.rawValue))")
+            debugLog.log("TextExtractor", "AX: failed to get focused element (error \(focusResult.rawValue))", level: .debug)
             return nil
         }
 
@@ -63,7 +63,7 @@ final class TextExtractorService {
         var selectedTextValue: AnyObject?
         let textResult = AXUIElementCopyAttributeValue(focusedElement, kAXSelectedTextAttribute as CFString, &selectedTextValue)
         guard textResult == .success, let text = selectedTextValue as? String, !text.isEmpty else {
-            debugLog.log("TextExtractor", "AX: no selected text (error \(textResult.rawValue))")
+            debugLog.log("TextExtractor", "AX: no selected text (error \(textResult.rawValue))", level: .debug)
             return nil
         }
 
@@ -142,7 +142,7 @@ final class TextExtractorService {
 
         // Check if clipboard changed
         guard pasteboard.changeCount != previousChangeCount else {
-            debugLog.log("TextExtractor", "Clipboard: pasteboard unchanged after Cmd+C")
+            debugLog.log("TextExtractor", "Clipboard: pasteboard unchanged after Cmd+C", level: .debug)
             return nil
         }
 
@@ -155,7 +155,7 @@ final class TextExtractorService {
         }
 
         guard let text = copiedText, !text.isEmpty else {
-            debugLog.log("TextExtractor", "Clipboard: no text after Cmd+C")
+            debugLog.log("TextExtractor", "Clipboard: no text after Cmd+C", level: .debug)
             return nil
         }
 
