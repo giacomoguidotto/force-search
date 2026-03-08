@@ -30,19 +30,21 @@ final class SearchPanel: NSPanel {
         animationBehavior = .utilityWindow
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        // Apply theme
-        if let appearanceName = settings.theme.appearanceName {
-            appearance = NSAppearance(named: appearanceName)
-        }
+        // Always dark
+        appearance = ScryTheme.darkAppearance
 
         // Create visual effect view as content
         let visualEffect = NSVisualEffectView(frame: contentRect(forFrameRect: frame))
-        visualEffect.material = .popover
+        visualEffect.material = .hudWindow
         visualEffect.state = .active
         visualEffect.blendingMode = .behindWindow
         visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = settings.cornerRadius
+        visualEffect.layer?.cornerRadius = Constants.Panel.defaultCornerRadius
         visualEffect.layer?.masksToBounds = true
+
+        // Accent border
+        visualEffect.layer?.borderWidth = 1
+        visualEffect.layer?.borderColor = ScryTheme.Colors.panelBorder.cgColor
 
         contentView = visualEffect
 
