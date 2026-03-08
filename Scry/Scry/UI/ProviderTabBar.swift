@@ -47,6 +47,7 @@ final class ProviderTabBar: NSView {
 
     private func setup() {
         wantsLayer = true
+        layer?.masksToBounds = true
 
         stackView.orientation = .horizontal
         stackView.spacing = 2
@@ -111,9 +112,10 @@ final class ProviderTabBar: NSView {
             button.contentTintColor = i == selectedIndex ? ScryTheme.Colors.accent : ScryTheme.Colors.textSecondary
         }
 
-        // Update selection indicator
+        // Update selection indicator — convert from stackView coords to tab bar coords
         let selectedButton = tabButtons[selectedIndex]
-        let targetFrame = selectedButton.frame.insetBy(dx: -2, dy: 0)
+        let converted = stackView.convert(selectedButton.frame, to: self)
+        let targetFrame = converted.insetBy(dx: -2, dy: 0)
 
         if animated {
             NSAnimationContext.runAnimationGroup { context in
