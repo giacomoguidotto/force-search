@@ -150,6 +150,10 @@ final class SearchPanelController: NSObject {
         NotificationCenter.default.publisher(for: .searchPanelEscapePressed)
             .sink { [weak self] _ in self?.dismiss() }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .searchPanelDidResignKey)
+            .sink { [weak self] _ in self?.dismiss() }
+            .store(in: &cancellables)
     }
 
     // MARK: - Content Display
@@ -437,10 +441,9 @@ final class SearchPanelController: NSObject {
 
     private func startClickOutsideMonitor() {
         stopClickOutsideMonitor()
-        clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self, weak panel] event in
-            guard let self = self, let panel = panel else { return }
-            let screenPoint = event.locationInWindow
-            // If click is outside the panel, dismiss
+        clickOutsideMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            guard let self = self, let panel = self.panel, panel.isVisible else { return }
+            let screenPoint = NSEvent.mouseLocation
             if !panel.frame.contains(screenPoint) {
                 self.dismiss()
             }
