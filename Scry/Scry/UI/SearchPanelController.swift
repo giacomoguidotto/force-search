@@ -12,7 +12,6 @@ final class SearchPanelController: NSObject {
     private var nativeResultView: NativeResultView!
     private var aiResultView: AIResultView!
     private var loadingBar: NSView!
-    private var hintBar: NSView!
     private var contentContainer: NSView!
     private var placeholderLabel: NSTextField!
     private var currentQuery = ""
@@ -95,7 +94,7 @@ final class SearchPanelController: NSObject {
 
         loadingBar = NSView()
         loadingBar.wantsLayer = true
-        loadingBar.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+        loadingBar.layer?.backgroundColor = ScryTheme.Colors.accent.cgColor
         loadingBar.isHidden = true
         loadingBar.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(loadingBar)
@@ -106,7 +105,7 @@ final class SearchPanelController: NSObject {
 
         placeholderLabel = NSTextField(labelWithString: "Searching…")
         placeholderLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        placeholderLabel.textColor = .tertiaryLabelColor
+        placeholderLabel.textColor = ScryTheme.Colors.textTertiary
         placeholderLabel.alignment = .center
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         contentContainer.addSubview(placeholderLabel)
@@ -124,12 +123,6 @@ final class SearchPanelController: NSObject {
         nativeResultView.translatesAutoresizingMaskIntoConstraints = false
         aiResultView = AIResultView()
         aiResultView.translatesAutoresizingMaskIntoConstraints = false
-
-        hintBar = createHintBar()
-        hintBar.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(hintBar)
-
-        let hintHeight: CGFloat = settings.showShortcutHints ? 28 : 0
 
         NSLayoutConstraint.activate([
             searchBar.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -150,43 +143,13 @@ final class SearchPanelController: NSObject {
             contentContainer.topAnchor.constraint(equalTo: loadingBar.bottomAnchor),
             contentContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             contentContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            contentContainer.bottomAnchor.constraint(equalTo: hintBar.topAnchor),
-
-            hintBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            hintBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            hintBar.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-            hintBar.heightAnchor.constraint(equalToConstant: hintHeight),
+            contentContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
 
         // Listen for panel events
         NotificationCenter.default.publisher(for: .searchPanelEscapePressed)
             .sink { [weak self] _ in self?.dismiss() }
             .store(in: &cancellables)
-    }
-
-    private func createHintBar() -> NSView {
-        let bar = NSView()
-        bar.wantsLayer = true
-        bar.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.05).cgColor
-        let stack = NSStackView()
-        stack.orientation = .horizontal
-        stack.spacing = 16
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        for (key, label) in [("⎋", "Close"), ("⌘↩", "Open in Browser"), ("⌘C", "Copy URL")] {
-            let k = NSTextField(labelWithString: key)
-            k.font = .monospacedSystemFont(ofSize: 10, weight: .medium)
-            k.textColor = .tertiaryLabelColor
-            let d = NSTextField(labelWithString: label)
-            d.font = .systemFont(ofSize: 10)
-            d.textColor = .tertiaryLabelColor
-            stack.addArrangedSubview({ let p = NSStackView(views: [k, d]); p.spacing = 4; return p }())
-        }
-        bar.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: bar.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: bar.centerYAnchor),
-        ])
-        return bar
     }
 
     // MARK: - Content Display
@@ -533,6 +496,12 @@ final class SearchPanelController: NSObject {
         // Cmd+C → copy URL
         if flags.contains(.command) && event.charactersIgnoringModifiers == "c" {
             copyURL()
+            return true
+        }
+
+        // Cmd+, → open preferences
+        if flags.contains(.command) && event.charactersIgnoringModifiers == "," {
+            (NSApp.delegate as? AppDelegate)?.showPreferences()
             return true
         }
 
