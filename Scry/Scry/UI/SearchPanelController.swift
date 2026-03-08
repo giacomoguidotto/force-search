@@ -21,9 +21,11 @@ final class SearchPanelController: NSObject {
     private var clickOutsideMonitor: Any?
     private var webViewCache: [String: SearchWebViewController] = [:]
     private var cachedQuery = ""
+    private var cursorPoint: NSPoint = .zero
 
     func show(query: String, at point: NSPoint) {
         currentQuery = query
+        cursorPoint = point
         currentProviders = registry.enabledProviders()
 
         guard !currentProviders.isEmpty else { return }
@@ -349,21 +351,47 @@ final class SearchPanelController: NSObject {
             panel.alphaValue = 0
             panel.makeKeyAndOrderFront(nil)
 
-            // Scale from 0.97 → 1.0
-            if let contentView = panel.contentView {
-                contentView.wantsLayer = true
-                let scale = AnimationConstants.PanelShow.initialScale
-                contentView.layer?.setAffineTransform(
-                    CGAffineTransform(scaleX: scale, y: scale)
-                )
-            }
+            guard let contentView = panel.contentView else { return }
+            contentView.wantsLayer = true
+            guard let layer = contentView.layer else { return }
 
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = AnimationConstants.PanelShow.opacityDuration
-                context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1.0)
-                panel.animator().alphaValue = CGFloat(settings.panelOpacity)
-                panel.contentView?.animator().layer?.setAffineTransform(.identity)
-            }
+            // Calculate directional offset from panel center toward cursor
+            let panelCenter = NSPoint(
+                x: panel.frame.midX,
+                y: panel.frame.midY
+            )
+            let fraction = AnimationConstants.PanelShow.cursorTranslationFraction
+            let dx = (cursorPoint.x - panelCenter.x) * fraction
+            let dy = (cursorPoint.y - panelCenter.y) * fraction
+            let scale = AnimationConstants.PanelShow.initialScale
+
+            // Initial transform: translate toward cursor + scale down
+            var initial = CATransform3DIdentity
+            initial = CATransform3DTranslate(initial, dx, dy, 0)
+            initial = CATransform3DScale(initial, scale, scale, 1)
+            layer.transform = initial
+
+            // Spring animation on transform
+            let spring = CASpringAnimation(keyPath: "transform")
+            spring.mass = AnimationConstants.PanelShow.springMass
+            spring.stiffness = AnimationConstants.PanelShow.springStiffness
+            spring.damping = AnimationConstants.PanelShow.springDamping
+            spring.fromValue = NSValue(caTransform3D: initial)
+            spring.toValue = NSValue(caTransform3D: CATransform3DIdentity)
+            spring.duration = spring.settlingDuration
+            spring.fillMode = .forwards
+            spring.isRemovedOnCompletion = true
+            layer.transform = CATransform3DIdentity
+            layer.add(spring, forKey: "bloomTransform")
+
+            // Fade in opacity
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0.0
+            fade.toValue = Float(settings.panelOpacity)
+            fade.duration = AnimationConstants.PanelShow.opacityDuration
+            fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.alphaValue = CGFloat(settings.panelOpacity)
+            panel.contentView?.layer?.add(fade, forKey: "bloomOpacity")
         } else {
             panel.alphaValue = CGFloat(settings.panelOpacity)
             panel.makeKeyAndOrderFront(nil)
@@ -378,14 +406,54 @@ final class SearchPanelController: NSObject {
             return
         }
 
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = AnimationConstants.PanelDismiss.duration
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            panel.animator().alphaValue = 0
-        }, completionHandler: {
+        guard let contentView = panel.contentView else {
             panel.orderOut(nil)
             completion()
-        })
+            return
+        }
+        contentView.wantsLayer = true
+        guard let layer = contentView.layer else {
+            panel.orderOut(nil)
+            completion()
+            return
+        }
+
+        let duration = AnimationConstants.PanelDismiss.duration
+        let curve = CAMediaTimingFunction(
+            controlPoints: AnimationConstants.PanelDismiss.curveP1x,
+            AnimationConstants.PanelDismiss.curveP1y,
+            AnimationConstants.PanelDismiss.curveP2x,
+            AnimationConstants.PanelDismiss.curveP2y
+        )
+
+        // Scale down
+        let finalScale = AnimationConstants.PanelDismiss.finalScale
+        let scaleAnim = CABasicAnimation(keyPath: "transform.scale")
+        scaleAnim.toValue = finalScale
+        scaleAnim.duration = duration
+        scaleAnim.timingFunction = curve
+        scaleAnim.fillMode = .forwards
+        scaleAnim.isRemovedOnCompletion = false
+
+        // Fade out
+        let fadeAnim = CABasicAnimation(keyPath: "opacity")
+        fadeAnim.toValue = 0.0
+        fadeAnim.duration = duration
+        fadeAnim.timingFunction = curve
+        fadeAnim.fillMode = .forwards
+        fadeAnim.isRemovedOnCompletion = false
+
+        CATransaction.begin()
+        CATransaction.setCompletionBlock {
+            layer.removeAllAnimations()
+            layer.transform = CATransform3DIdentity
+            panel.orderOut(nil)
+            completion()
+        }
+        layer.add(scaleAnim, forKey: "dismissScale")
+        layer.add(fadeAnim, forKey: "dismissFade")
+        panel.alphaValue = 0
+        CATransaction.commit()
     }
 
     private func startLoadingAnimation() {
