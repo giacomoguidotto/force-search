@@ -35,26 +35,26 @@ final class SearchPanel: NSPanel {
 
         let radius = Constants.Panel.defaultCornerRadius
 
-        // Create visual effect view as content
-        let visualEffect = NSVisualEffectView(frame: contentRect(forFrameRect: frame))
+        // Container that clips content to the rounded shape
+        let container = NSView(frame: contentRect(forFrameRect: frame))
+        container.wantsLayer = true
+        container.layer?.cornerRadius = radius
+        container.layer?.cornerCurve = .continuous
+        container.layer?.masksToBounds = true
+
+        // Frosted glass background
+        let visualEffect = NSVisualEffectView(frame: container.bounds)
         visualEffect.material = .windowBackground
         visualEffect.state = .active
         visualEffect.blendingMode = .behindWindow
-        visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = radius
-        visualEffect.layer?.masksToBounds = true
+        visualEffect.autoresizingMask = [.width, .height]
+        container.addSubview(visualEffect)
 
-        // Accent border
-        visualEffect.layer?.borderWidth = 1
-        visualEffect.layer?.borderColor = ScryTheme.Colors.panelBorder.cgColor
+        // Accent border (on the container, outside the clip)
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = ScryTheme.Colors.panelBorder.cgColor
 
-        contentView = visualEffect
-
-        // Round the window itself so the shadow follows the shape
-        if let windowLayer = contentView?.superview?.layer {
-            windowLayer.cornerRadius = radius
-            windowLayer.masksToBounds = true
-        }
+        contentView = container
 
         alphaValue = CGFloat(settings.panelOpacity)
     }
