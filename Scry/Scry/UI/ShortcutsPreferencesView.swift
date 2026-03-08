@@ -17,14 +17,14 @@ struct ShortcutsPreferencesView: View {
 
                 if settings.triggerMethod == .forceClick {
                     HStack {
-                        Text("Pressure sensitivity")
+                        Text("Sensitivity")
                         Slider(value: $settings.pressureSensitivity, in: 0.1...1.0, step: 0.05)
                         Text("\(Int(settings.pressureSensitivity * 100))%")
                             .monospacedDigit()
                             .frame(width: 48, alignment: .trailing)
                     }
 
-                    Text("Higher = more pressure needed. Adjust if accidental triggers occur.")
+                    Text("Higher = triggers faster. Lower if accidental triggers occur.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

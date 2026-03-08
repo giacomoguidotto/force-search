@@ -20,7 +20,6 @@ enum Constants {
 
     enum Timing {
         static let debounceCooldown: TimeInterval = 0.3
-        static let forceClickHoldDelay: TimeInterval = 0.2
         static let healthCheckInterval: TimeInterval = 5.0
         static let maxQueryLength = 200
     }

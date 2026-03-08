@@ -170,8 +170,28 @@ final class EventTapService {
         os_unfair_lock_unlock(&stateLock)
     }
 
-    /// Called from the CGEvent callback for mouse events with a raw pressure value.
-    fileprivate func handleMousePressure(_ rawPressure: Double, type: CGEventType, location: CGPoint) {
+    /// Computes the hold duration required to trigger a force-click based on the
+    /// user's sensitivity setting.  Higher sensitivity → shorter hold.
+    ///
+    /// CGEvent taps and global NSEvent monitors cannot receive graduated Force Touch
+    /// pressure (NSEvent.pressure on drag events is always 1.0, and NSEventTypePressure
+    /// events don't flow reliably through CGEvent taps or global monitors).  The only
+    /// viable system-wide force-click detection is hold-duration + drift-distance gating.
+    /// The sensitivity slider controls the required hold time:
+    ///   sensitivity 1.0 → 0.15 s   (very responsive)
+    ///   sensitivity 0.5 → 0.375 s
+    ///   sensitivity 0.1 → 0.555 s   (requires a deliberate hold)
+    private func requiredHoldDuration() -> TimeInterval {
+        let sensitivity = settings.pressureSensitivity
+        let minDelay = 0.15
+        let maxDelay = 0.6
+        return minDelay + (1.0 - sensitivity) * (maxDelay - minDelay)
+    }
+
+    /// Called from the CGEvent callback for mouse events.
+    /// Force-click is detected by hold-duration + drift-distance (not pressure — see
+    /// `requiredHoldDuration()` for rationale).
+    fileprivate func handleMouseEvent(type: CGEventType, location: CGPoint) {
         os_unfair_lock_lock(&stateLock)
 
         if type == .leftMouseDown {
@@ -190,34 +210,24 @@ final class EventTapService {
             return
         }
 
-        // leftMouseDragged — check if pressure crossed the force-click threshold
+        // leftMouseDragged — check hold time + drift distance
         guard _mouseIsDown, !_forceClickFiredForCurrentPress else {
             os_unfair_lock_unlock(&stateLock)
             return
         }
 
-        // Require a minimum hold duration to distinguish force clicks from normal clicks.
-        // Normal clicks are quick (< 200ms); force clicks require sustained pressure.
         let now = Date()
-        guard now.timeIntervalSince(_mouseDownTime) >= Constants.Timing.forceClickHoldDelay else {
+        let holdDuration = requiredHoldDuration()
+        guard now.timeIntervalSince(_mouseDownTime) >= holdDuration else {
             os_unfair_lock_unlock(&stateLock)
             return
         }
 
-        // Reject if the cursor has moved too far from the initial click — this is a drag,
-        // not a force-click.  Normal trackpad drags report pressure=1.0 which would
-        // otherwise false-positive here.
-        let currentLocation = location
-        let dx = currentLocation.x - _mouseDownLocation.x
-        let dy = currentLocation.y - _mouseDownLocation.y
+        // Reject if the cursor has moved too far from the initial click — this is a drag.
+        let dx = location.x - _mouseDownLocation.x
+        let dy = location.y - _mouseDownLocation.y
         let drift = sqrt(dx * dx + dy * dy)
         guard drift <= Self.maxForceClickDrift else {
-            os_unfair_lock_unlock(&stateLock)
-            return
-        }
-
-        let threshold = settings.pressureSensitivity
-        guard rawPressure >= threshold else {
             os_unfair_lock_unlock(&stateLock)
             return
         }
@@ -231,9 +241,10 @@ final class EventTapService {
         _forceClickFiredForCurrentPress = true
         os_unfair_lock_unlock(&stateLock)
 
+        let holdMs = now.timeIntervalSince(_mouseDownTime) * 1000
         debugLog.log(
             "EventTap",
-            "FORCE-CLICK detected via mouse pressure (\(String(format: "%.3f", rawPressure)))"
+            "FORCE-CLICK detected (hold \(String(format: "%.0fms", holdMs)), drift \(String(format: "%.1fpt", drift)))"
         )
         DispatchQueue.main.async { [weak self] in
             self?.forceClickPublisher.send(NSEvent.mouseLocation)
@@ -332,20 +343,12 @@ private func eventTapCallback(
         return Unmanaged.passUnretained(event)
     }
 
-    // --- Mouse events: read raw pressure from CGEvent field ---
+    // --- Mouse events: detect force-click via hold-duration + drift-distance ---
+    // Note: NSEvent.pressure / CGEvent.mouseEventPressure on drag events is always 1.0
+    // on Force Touch trackpads (Apple docs). Graduated pressure only flows through
+    // NSEventTypePressure events which don't reach CGEvent taps or global monitors.
     if type == .leftMouseDown || type == .leftMouseDragged || type == .leftMouseUp {
-        let rawPressure = event.getDoubleValueField(.mouseEventPressure)
-
-        // Only log drag events with notable pressure to avoid noise from normal clicks
-        if type == .leftMouseDragged && rawPressure > 0.5 {
-            service.debugLog.log(
-                "Tap",
-                "drag pressure=\(String(format: "%.3f", rawPressure))",
-                level: .debug
-            )
-        }
-
-        service.handleMousePressure(rawPressure, type: type, location: event.location)
+        service.handleMouseEvent(type: type, location: event.location)
 
         // Never suppress mouse events
         return Unmanaged.passUnretained(event)
