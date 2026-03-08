@@ -55,8 +55,8 @@ final class ProviderTabBar: NSView {
         addSubview(stackView)
 
         selectionIndicator.wantsLayer = true
-        selectionIndicator.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.15).cgColor
-        selectionIndicator.layer?.cornerRadius = 6
+        selectionIndicator.layer?.backgroundColor = ScryTheme.Colors.tabSelectedFill.cgColor
+        selectionIndicator.layer?.cornerRadius = 8
         addSubview(selectionIndicator, positioned: .below, relativeTo: stackView)
 
         NSLayoutConstraint.activate([
@@ -84,23 +84,12 @@ final class ProviderTabBar: NSView {
             attrTitle.append(NSAttributedString(string: " "))
         }
 
-        // Name + shortcut hint
-        let shortcutIndex = index + 1
-        let label = "\(provider.name)"
+        // Name only (no keyboard shortcut hints)
         let labelAttrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.labelColor,
+            .foregroundColor: ScryTheme.Colors.textSecondary,
         ]
-        attrTitle.append(NSAttributedString(string: label, attributes: labelAttrs))
-
-        if shortcutIndex <= 9 {
-            let shortcut = " ⌘\(shortcutIndex)"
-            let shortcutAttrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 10),
-                .foregroundColor: NSColor.tertiaryLabelColor,
-            ]
-            attrTitle.append(NSAttributedString(string: shortcut, attributes: shortcutAttrs))
-        }
+        attrTitle.append(NSAttributedString(string: provider.name, attributes: labelAttrs))
 
         button.attributedTitle = attrTitle
         button.target = self
@@ -119,7 +108,7 @@ final class ProviderTabBar: NSView {
         guard selectedIndex < tabButtons.count else { return }
 
         for (i, button) in tabButtons.enumerated() {
-            button.contentTintColor = i == selectedIndex ? .controlAccentColor : .secondaryLabelColor
+            button.contentTintColor = i == selectedIndex ? ScryTheme.Colors.accent : ScryTheme.Colors.textSecondary
         }
 
         // Update selection indicator
@@ -128,8 +117,13 @@ final class ProviderTabBar: NSView {
 
         if animated {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = AnimationConstants.TabSwitch.contentFadeDuration
-                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                context.duration = AnimationConstants.TabSwitch.springDuration
+                context.timingFunction = CAMediaTimingFunction(
+                    controlPoints: AnimationConstants.TabSwitch.springP1x,
+                    AnimationConstants.TabSwitch.springP1y,
+                    AnimationConstants.TabSwitch.springP2x,
+                    AnimationConstants.TabSwitch.springP2y
+                )
                 selectionIndicator.animator().frame = targetFrame
             }
         } else {

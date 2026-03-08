@@ -13,6 +13,7 @@ final class SearchBarView: NSView {
     private let textField = NSTextField()
     private let iconView = NSImageView()
     private let clearButton = NSButton()
+    private let separatorView = NSView()
 
     var query: String {
         get { textField.stringValue }
@@ -41,7 +42,7 @@ final class SearchBarView: NSView {
         // Search icon
         let icon = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Search")
         iconView.image = icon
-        iconView.contentTintColor = .secondaryLabelColor
+        iconView.contentTintColor = ScryTheme.Colors.accent
         iconView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(iconView)
 
@@ -50,8 +51,15 @@ final class SearchBarView: NSView {
         textField.isBezeled = false
         textField.drawsBackground = false
         textField.focusRingType = .none
-        textField.font = .systemFont(ofSize: 16, weight: .regular)
-        textField.placeholderString = "Search..."
+        textField.font = .systemFont(ofSize: 20, weight: .light)
+        textField.textColor = ScryTheme.Colors.textPrimary
+        textField.placeholderAttributedString = NSAttributedString(
+            string: "Search...",
+            attributes: [
+                .foregroundColor: ScryTheme.Colors.textTertiary,
+                .font: NSFont.systemFont(ofSize: 20, weight: .light),
+            ]
+        )
         textField.cell?.lineBreakMode = .byTruncatingTail
         textField.delegate = self
         textField.translatesAutoresizingMaskIntoConstraints = false
@@ -60,13 +68,19 @@ final class SearchBarView: NSView {
         // Clear button (Cmd+Delete)
         clearButton.isBordered = false
         clearButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Clear")
-        clearButton.contentTintColor = .tertiaryLabelColor
+        clearButton.contentTintColor = ScryTheme.Colors.textTertiary
         clearButton.target = self
         clearButton.action = #selector(clearTapped)
         clearButton.toolTip = "Clear (⌘⌫)"
         clearButton.translatesAutoresizingMaskIntoConstraints = false
         clearButton.isHidden = true
         addSubview(clearButton)
+
+        // Bottom separator
+        separatorView.wantsLayer = true
+        separatorView.layer?.backgroundColor = ScryTheme.Colors.separator.cgColor
+        separatorView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(separatorView)
 
         NSLayoutConstraint.activate([
             iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
@@ -82,6 +96,11 @@ final class SearchBarView: NSView {
             clearButton.centerYAnchor.constraint(equalTo: centerYAnchor),
             clearButton.widthAnchor.constraint(equalToConstant: 18),
             clearButton.heightAnchor.constraint(equalToConstant: 18),
+
+            separatorView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            separatorView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            separatorView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            separatorView.heightAnchor.constraint(equalToConstant: 1),
         ])
     }
 
