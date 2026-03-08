@@ -74,18 +74,20 @@ struct OnboardingView: View {
                     .padding(.bottom, 8)
             }
 
-            // Primary action button
-            Button {
-                settings.hasCompletedOnboarding = true
-                onComplete()
-            } label: {
-                Text(permissions.allPermissionsGranted ? "Get Started" : "Continue Anyway")
-                    .frame(maxWidth: .infinity)
+            // Primary action button — only available when all permissions are granted
+            if permissions.allPermissionsGranted {
+                Button {
+                    settings.hasCompletedOnboarding = true
+                    onComplete()
+                } label: {
+                    Text("Get Started")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
-            .controlSize(.large)
-            .buttonStyle(.borderedProminent)
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
         }
         .frame(width: 420, height: 580)
         .onAppear {

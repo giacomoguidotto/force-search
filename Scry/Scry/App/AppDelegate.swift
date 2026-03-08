@@ -134,17 +134,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       .store(in: &cancellables)
 
-    // Retry event tap when permissions change to granted
+    // React to permission changes
     permissions.$accessibilityGranted
-      .combineLatest(permissions.$inputMonitoringGranted)
-      .map { $0.0 && $0.1 }
+      .combineLatest(permissions.$inputMonitoringGranted, permissions.$screenRecordingGranted)
+      .map { $0.0 && $0.1 && $0.2 }
       .removeDuplicates()
       .dropFirst()
-      .filter { $0 }
-      .sink { [weak self] _ in
+      .sink { [weak self] allGranted in
         guard let self = self else { return }
-        if self.settings.triggerMethod == .forceClick {
-          self.eventTapService?.restart()
+        if allGranted {
+          // Retry event tap when permissions become granted
+          if self.settings.triggerMethod == .forceClick {
+            self.eventTapService?.restart()
+          }
+        } else {
+          // Permissions revoked — show onboarding so user can re-grant
+          self.onboardingController.show()
         }
       }
       .store(in: &cancellables)
