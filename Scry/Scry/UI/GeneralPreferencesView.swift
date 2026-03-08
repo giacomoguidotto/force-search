@@ -7,13 +7,6 @@ struct GeneralPreferencesView: View {
     var body: some View {
         Form {
             Section("Appearance") {
-                Picker("Theme", selection: $settings.theme) {
-                    ForEach(Theme.allCases, id: \.self) { theme in
-                        Text(theme.rawValue.capitalized).tag(theme)
-                    }
-                }
-                .pickerStyle(.segmented)
-
                 Toggle("Show animations", isOn: $settings.showAnimations)
 
                 Picker("Menu bar icon", selection: $settings.menuBarIconStyle) {
@@ -58,7 +51,6 @@ struct GeneralPreferencesView: View {
                     }
                 }
 
-                Toggle("Show shortcut hints", isOn: $settings.showShortcutHints)
             }
 
             Section("System") {

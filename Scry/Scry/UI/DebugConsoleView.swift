@@ -157,33 +157,3 @@ struct DebugConsoleView: View {
         }
     }
 }
-
-final class DebugConsoleWindowController {
-    private var window: NSWindow?
-
-    func show() {
-        if let existing = window {
-            existing.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
-        }
-
-        let view = DebugConsoleView()
-        let hostingView = NSHostingView(rootView: view)
-
-        let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
-            backing: .buffered,
-            defer: false
-        )
-        win.contentView = hostingView
-        win.title = "Scry Debug Console"
-        win.center()
-        win.isReleasedWhenClosed = false
-        win.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-
-        self.window = win
-    }
-}

@@ -47,6 +47,7 @@ struct ShortcutsPreferencesView: View {
                     shortcutRow("⌘1–9", "Switch provider tabs")
                     shortcutRow("⌘↩", "Open in browser")
                     shortcutRow("⌘C", "Copy URL")
+                    shortcutRow("⌘,", "Open preferences")
                     shortcutRow("⌘⌫", "Clear search field")
                     shortcutRow("↩", "Search with current text")
                 }

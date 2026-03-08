@@ -6,7 +6,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let permissions = PermissionsService.shared
   private var onboardingController = OnboardingWindowController()
   private var preferencesController: PreferencesWindowController?
-  private var debugConsoleController: DebugConsoleWindowController?
   private var eventTapService: EventTapService?
   private var textExtractorService: TextExtractorService?
   private var hotKeyService: HotKeyService?
@@ -50,13 +49,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func showOnboarding() {
     onboardingController.show()
-  }
-
-  func showDebugConsole() {
-    if debugConsoleController == nil {
-      debugConsoleController = DebugConsoleWindowController()
-    }
-    debugConsoleController?.show()
   }
 
   func performSearch(at point: NSPoint?) {
