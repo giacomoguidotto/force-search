@@ -55,7 +55,7 @@ final class AIResultView: NSScrollView {
         textView.isSelectable = true
         textView.isRichText = false
         textView.font = .systemFont(ofSize: 13)
-        textView.textColor = .labelColor
+        textView.textColor = ScryTheme.Colors.textPrimary
         textView.backgroundColor = .clear
         textView.textContainerInset = NSSize(width: 12, height: 12)
         textView.isVerticallyResizable = true

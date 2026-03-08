@@ -23,7 +23,7 @@ final class NativeResultView: NSScrollView {
         if let errorMessage = errorMessage {
             let errorLabel = NSTextField(labelWithString: errorMessage)
             errorLabel.font = .systemFont(ofSize: 14)
-            errorLabel.textColor = .secondaryLabelColor
+            errorLabel.textColor = ScryTheme.Colors.textSecondary
             errorLabel.alignment = .center
             stackView.addArrangedSubview(errorLabel)
             return
@@ -32,7 +32,7 @@ final class NativeResultView: NSScrollView {
         if results.isEmpty {
             let noResults = NSTextField(labelWithString: "No results found.")
             noResults.font = .systemFont(ofSize: 14)
-            noResults.textColor = .secondaryLabelColor
+            noResults.textColor = ScryTheme.Colors.textSecondary
             noResults.alignment = .center
             stackView.addArrangedSubview(noResults)
             return
@@ -82,7 +82,7 @@ final class NativeResultView: NSScrollView {
         // Title
         let title = NSTextField(labelWithString: result.title)
         title.font = .systemFont(ofSize: 18, weight: .semibold)
-        title.textColor = .labelColor
+        title.textColor = ScryTheme.Colors.textPrimary
         title.lineBreakMode = .byWordWrapping
         title.maximumNumberOfLines = 2
         container.addArrangedSubview(title)
@@ -122,7 +122,7 @@ final class NativeResultView: NSScrollView {
         // Snippet
         let snippet = NSTextField(wrappingLabelWithString: result.snippet)
         snippet.font = .systemFont(ofSize: 13)
-        snippet.textColor = .secondaryLabelColor
+        snippet.textColor = ScryTheme.Colors.textSecondary
         snippet.maximumNumberOfLines = 0
         container.addArrangedSubview(snippet)
 
@@ -131,7 +131,7 @@ final class NativeResultView: NSScrollView {
             let linkButton = NSButton()
             linkButton.isBordered = false
             linkButton.title = "Read more on Wikipedia"
-            linkButton.contentTintColor = .controlAccentColor
+            linkButton.contentTintColor = ScryTheme.Colors.accent
             linkButton.font = .systemFont(ofSize: 12)
             linkButton.target = self
             linkButton.action = #selector(openLink(_:))
