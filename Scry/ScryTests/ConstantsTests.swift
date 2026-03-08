@@ -19,9 +19,9 @@ final class ConstantsTests: XCTestCase {
     }
 
     func testAnimationConstants() {
-        XCTAssertGreaterThan(AnimationConstants.PanelShow.duration, 0)
+        XCTAssertGreaterThan(AnimationConstants.PanelShow.opacityDuration, 0)
         XCTAssertGreaterThan(AnimationConstants.PanelDismiss.duration, 0)
-        XCTAssertGreaterThan(AnimationConstants.TabSwitch.duration, 0)
+        XCTAssertGreaterThan(AnimationConstants.TabSwitch.contentFadeDuration, 0)
         XCTAssertLessThan(AnimationConstants.PanelShow.initialScale, AnimationConstants.PanelShow.finalScale)
     }
 }

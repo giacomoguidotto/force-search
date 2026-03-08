@@ -8,11 +8,10 @@ enum Constants {
     enum Panel {
         static let defaultWidth: CGFloat = 520
         static let defaultHeight: CGFloat = 580
-        static let defaultCornerRadius: CGFloat = 14
+        static let defaultCornerRadius: CGFloat = 20
         static let edgeMargin: CGFloat = 12
-        static let searchBarHeight: CGFloat = 44
-        static let tabBarHeight: CGFloat = 32
-        static let hintBarHeight: CGFloat = 28
+        static let searchBarHeight: CGFloat = 52
+        static let tabBarHeight: CGFloat = 38
         static let minWidth: CGFloat = 360
         static let minHeight: CGFloat = 300
         static let maxWidth: CGFloat = 900

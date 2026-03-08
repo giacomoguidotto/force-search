@@ -127,7 +127,7 @@ final class SearchPanelController: NSObject {
         hintBar.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(hintBar)
 
-        let hintHeight: CGFloat = settings.showShortcutHints ? Constants.Panel.hintBarHeight : 0
+        let hintHeight: CGFloat = settings.showShortcutHints ? 28 : 0
 
         NSLayoutConstraint.activate([
             searchBar.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -359,7 +359,7 @@ final class SearchPanelController: NSObject {
             }
 
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = AnimationConstants.PanelShow.duration
+                context.duration = AnimationConstants.PanelShow.opacityDuration
                 context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1.0)
                 panel.animator().alphaValue = CGFloat(settings.panelOpacity)
                 panel.contentView?.animator().layer?.setAffineTransform(.identity)
@@ -544,12 +544,12 @@ extension SearchPanelController: ProviderTabBarDelegate {
         // Cross-fade animation
         if settings.showAnimations {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = AnimationConstants.TabSwitch.duration
+                context.duration = AnimationConstants.TabSwitch.contentFadeDuration
                 contentContainer.animator().alphaValue = 0
             } completionHandler: {
                 self.performSearch()
                 NSAnimationContext.runAnimationGroup { context in
-                    context.duration = AnimationConstants.TabSwitch.duration
+                    context.duration = AnimationConstants.TabSwitch.contentFadeDuration
                     self.contentContainer.animator().alphaValue = 1
                 }
             }

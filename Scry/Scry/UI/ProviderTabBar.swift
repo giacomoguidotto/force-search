@@ -128,7 +128,7 @@ final class ProviderTabBar: NSView {
 
         if animated {
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = AnimationConstants.TabSwitch.duration
+                context.duration = AnimationConstants.TabSwitch.contentFadeDuration
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 selectionIndicator.animator().frame = targetFrame
             }
