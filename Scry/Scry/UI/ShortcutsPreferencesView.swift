@@ -8,8 +8,8 @@ struct ShortcutsPreferencesView: View {
     /// Computed hold duration matching EventTapService.requiredHoldDuration().
     private var holdDuration: Double {
         let sensitivity = settings.pressureSensitivity
-        let minDelay = 0.3
-        let maxDelay = 0.8
+        let minDelay = 0.2
+        let maxDelay = 0.7
         return minDelay + (1.0 - sensitivity) * (maxDelay - minDelay)
     }
 

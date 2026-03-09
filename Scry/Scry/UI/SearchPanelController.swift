@@ -23,6 +23,17 @@ final class SearchPanelController: NSObject {
     private var cursorPoint: NSPoint = .zero
 
     func show(query: String, at point: NSPoint) {
+        // If panel is already visible, just update the query and re-search
+        if let panel = panel, panel.isVisible {
+            currentQuery = query
+            searchBar.query = query
+            clearWebViewCache()
+            performSearch()
+            panel.makeKeyAndOrderFront(nil)
+            searchBar.focus()
+            return
+        }
+
         currentQuery = query
         cursorPoint = point
         currentProviders = registry.enabledProviders()
