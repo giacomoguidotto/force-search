@@ -16,32 +16,6 @@ struct GeneralPreferencesView: View {
                 }
             }
 
-            Section("Panel Size") {
-                HStack {
-                    Text("Width")
-                    Slider(value: $settings.panelWidth, in: Constants.Panel.minWidth...Constants.Panel.maxWidth, step: 10)
-                    Text("\(Int(settings.panelWidth))pt")
-                        .monospacedDigit()
-                        .frame(width: 48, alignment: .trailing)
-                }
-
-                HStack {
-                    Text("Height")
-                    Slider(value: $settings.panelHeight, in: Constants.Panel.minHeight...Constants.Panel.maxHeight, step: 10)
-                    Text("\(Int(settings.panelHeight))pt")
-                        .monospacedDigit()
-                        .frame(width: 48, alignment: .trailing)
-                }
-
-                HStack {
-                    Text("Opacity")
-                    Slider(value: $settings.panelOpacity, in: 0.5...1.0, step: 0.05)
-                    Text("\(Int(settings.panelOpacity * 100))%")
-                        .monospacedDigit()
-                        .frame(width: 48, alignment: .trailing)
-                }
-            }
-
             Section("Behavior") {
                 Toggle("Dismiss panel when clicking a link", isOn: $settings.dismissOnLinkClick)
 
