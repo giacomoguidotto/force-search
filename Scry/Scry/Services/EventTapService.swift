@@ -43,9 +43,13 @@ final class EventTapService {
     /// Mouse position at the start of the current press (for drag distance gating).
     fileprivate var _mouseDownLocation: CGPoint = .zero
 
-    /// Maximum distance (points) the cursor may move from the initial click and still
-    /// count as a force-click.  Any larger movement is treated as a drag.
-    private static let maxForceClickDrift: CGFloat = 10
+    /// Maximum distance (points) the cursor may ever move from the initial click and
+    /// still count as a force-click.  Once exceeded at any point during the press, the
+    /// gesture is permanently rejected (no re-triggering if the cursor drifts back).
+    private static let maxForceClickDrift: CGFloat = 4
+
+    /// True when drift exceeded the threshold at any point during the current press.
+    fileprivate var _driftExceeded = false
 
     func start() {
         logger.info("start() called — isRunning=\(self.isRunning), triggerMethod=\(String(describing: self.settings.triggerMethod))")
@@ -133,6 +137,7 @@ final class EventTapService {
         _mouseIsDown = false
         _mouseDownTime = .distantPast
         _forceClickFiredForCurrentPress = false
+        _driftExceeded = false
         _mouseDownLocation = .zero
         os_unfair_lock_unlock(&stateLock)
         debugLog.eventTapStatus = "Stopped"
@@ -178,13 +183,13 @@ final class EventTapService {
     /// events don't flow reliably through CGEvent taps or global monitors).  The only
     /// viable system-wide force-click detection is hold-duration + drift-distance gating.
     /// The sensitivity slider controls the required hold time:
-    ///   sensitivity 1.0 → 0.15 s   (very responsive)
-    ///   sensitivity 0.5 → 0.375 s
-    ///   sensitivity 0.1 → 0.555 s   (requires a deliberate hold)
+    ///   sensitivity 1.0 → 0.3 s   (responsive but not hair-trigger)
+    ///   sensitivity 0.5 → 0.55 s
+    ///   sensitivity 0.1 → 0.75 s   (requires a deliberate hold)
     private func requiredHoldDuration() -> TimeInterval {
         let sensitivity = settings.pressureSensitivity
-        let minDelay = 0.15
-        let maxDelay = 0.6
+        let minDelay = 0.3
+        let maxDelay = 0.8
         return minDelay + (1.0 - sensitivity) * (maxDelay - minDelay)
     }
 
@@ -198,6 +203,7 @@ final class EventTapService {
             _mouseIsDown = true
             _mouseDownTime = Date()
             _forceClickFiredForCurrentPress = false
+            _driftExceeded = false
             _mouseDownLocation = location
             os_unfair_lock_unlock(&stateLock)
             return
@@ -206,28 +212,31 @@ final class EventTapService {
         if type == .leftMouseUp {
             _mouseIsDown = false
             _forceClickFiredForCurrentPress = false
+            _driftExceeded = false
             os_unfair_lock_unlock(&stateLock)
             return
         }
 
         // leftMouseDragged — check hold time + drift distance
-        guard _mouseIsDown, !_forceClickFiredForCurrentPress else {
+        guard _mouseIsDown, !_forceClickFiredForCurrentPress, !_driftExceeded else {
             os_unfair_lock_unlock(&stateLock)
             return
         }
 
-        let now = Date()
-        let holdDuration = requiredHoldDuration()
-        guard now.timeIntervalSince(_mouseDownTime) >= holdDuration else {
-            os_unfair_lock_unlock(&stateLock)
-            return
-        }
-
-        // Reject if the cursor has moved too far from the initial click — this is a drag.
+        // Check drift — once exceeded, permanently reject this press
         let dx = location.x - _mouseDownLocation.x
         let dy = location.y - _mouseDownLocation.y
         let drift = sqrt(dx * dx + dy * dy)
         guard drift <= Self.maxForceClickDrift else {
+            _driftExceeded = true
+            os_unfair_lock_unlock(&stateLock)
+            return
+        }
+
+        // Require minimum hold duration
+        let now = Date()
+        let holdDuration = requiredHoldDuration()
+        guard now.timeIntervalSince(_mouseDownTime) >= holdDuration else {
             os_unfair_lock_unlock(&stateLock)
             return
         }
