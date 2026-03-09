@@ -20,8 +20,8 @@ final class SearchWebViewController: NSObject {
     override init() {
         let config = WKWebViewConfiguration()
 
-        // Non-persistent data store — no cookies/cache leak between sessions
-        config.websiteDataStore = .nonPersistent()
+        // Use the default persistent data store so consent cookies survive across sessions
+        config.websiteDataStore = .default()
 
         // Use desktop Safari user-agent to avoid mobile layouts and reduce CAPTCHA risk
         config.applicationNameForUserAgent = "Safari/605.1.15"

@@ -28,6 +28,18 @@ struct GoogleSearchProvider: SearchProvider {
         """
         // Remove sticky search bar
         document.querySelectorAll('[data-sticky-container]').forEach(el => el.remove());
+
+        // Auto-dismiss Google GDPR cookie consent (consent.google.com redirect)
+        (function() {
+          function dismissConsent() {
+            if (!location.hostname.includes('consent.google')) return false;
+            // The reject form is the first form posting to /save
+            var btn = document.querySelector('form[action*="/save"] button');
+            if (btn) { btn.click(); return true; }
+            return false;
+          }
+          if (!dismissConsent()) setTimeout(dismissConsent, 1000);
+        })();
         """
     }
 }
