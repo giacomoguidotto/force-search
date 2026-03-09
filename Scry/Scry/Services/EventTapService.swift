@@ -52,13 +52,13 @@ final class EventTapService {
     fileprivate var _driftExceeded = false
 
     func start() {
-        logger.info("start() called — isRunning=\(self.isRunning), triggerMethod=\(String(describing: self.settings.triggerMethod))")
+        logger.info("start() called — isRunning=\(self.isRunning), forceClickEnabled=\(self.settings.forceClickEnabled)")
         guard !isRunning else {
             debugLog.log("EventTap", "start() called but already running", level: .debug)
             return
         }
-        guard settings.triggerMethod == .forceClick else {
-            debugLog.log("EventTap", "start() skipped — trigger method is not forceClick", level: .debug)
+        guard settings.forceClickEnabled else {
+            debugLog.log("EventTap", "start() skipped — force click is disabled", level: .debug)
             return
         }
 

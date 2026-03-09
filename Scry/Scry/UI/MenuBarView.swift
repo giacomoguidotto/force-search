@@ -22,28 +22,32 @@ struct MenuBarView: View {
             Divider()
 
             // Trigger info
-            if settings.triggerMethod == .forceClick {
+            if settings.forceClickEnabled {
                 Label("Force Click to search", systemImage: "hand.tap")
                     .font(.subheadline)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
             }
 
-            Label("Hotkey: \(settings.hotKey.displayString)", systemImage: "keyboard")
-                .font(.subheadline)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+            if settings.hotKeyEnabled {
+                Label("Hotkey: \(settings.hotKey.displayString)", systemImage: "keyboard")
+                    .font(.subheadline)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+            }
 
             Divider()
 
-            // Toggle
-            Toggle("Enable Force Click", isOn: Binding(
-                get: { settings.triggerMethod == .forceClick },
-                set: { settings.triggerMethod = $0 ? .forceClick : .hotKeyOnly }
-            ))
-            .toggleStyle(.switch)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            // Toggles
+            Toggle("Force Click", isOn: $settings.forceClickEnabled)
+                .toggleStyle(.switch)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+
+            Toggle("Global Hotkey", isOn: $settings.hotKeyEnabled)
+                .toggleStyle(.switch)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
 
             Divider()
 

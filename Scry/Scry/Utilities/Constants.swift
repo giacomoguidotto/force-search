@@ -45,7 +45,9 @@ enum Constants {
     }
 
     enum UserDefaultsKeys {
-        static let triggerMethod = "triggerMethod"
+        static let triggerMethod = "triggerMethod"  // legacy — migrated to forceClickEnabled
+        static let forceClickEnabled = "forceClickEnabled"
+        static let hotKeyEnabled = "hotKeyEnabled"
         static let hotKeyKeyCode = "hotKeyKeyCode"
         static let hotKeyModifiers = "hotKeyModifiers"
         static let pressureSensitivity = "pressureSensitivity"

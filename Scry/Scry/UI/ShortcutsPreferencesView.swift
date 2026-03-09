@@ -5,17 +5,20 @@ struct ShortcutsPreferencesView: View {
     @State private var isRecording = false
     @State private var recordedKeyCombo: KeyCombo?
 
+    /// Computed hold duration matching EventTapService.requiredHoldDuration().
+    private var holdDuration: Double {
+        let sensitivity = settings.pressureSensitivity
+        let minDelay = 0.3
+        let maxDelay = 0.8
+        return minDelay + (1.0 - sensitivity) * (maxDelay - minDelay)
+    }
+
     var body: some View {
         Form {
-            Section("Trigger Method") {
-                Picker("Trigger", selection: $settings.triggerMethod) {
-                    ForEach(TriggerMethod.allCases, id: \.self) { method in
-                        Text(method.displayName).tag(method)
-                    }
-                }
-                .pickerStyle(.segmented)
+            Section {
+                Toggle("Enable Force Click", isOn: $settings.forceClickEnabled)
 
-                if settings.triggerMethod == .forceClick {
+                if settings.forceClickEnabled {
                     HStack {
                         Text("Sensitivity")
                         Slider(value: $settings.pressureSensitivity, in: 0.1...1.0, step: 0.05)
@@ -24,19 +27,30 @@ struct ShortcutsPreferencesView: View {
                             .frame(width: 48, alignment: .trailing)
                     }
 
-                    Text("Higher = triggers faster. Lower if accidental triggers occur.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        statRow("Hold time", String(format: "%.2fs", holdDuration))
+                        statRow("Max drift", "4pt")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
+            } header: {
+                Label("Force Click", systemImage: "hand.tap")
             }
 
-            Section("Global Hotkey") {
-                HStack {
-                    Text("Search hotkey")
-                    Spacer()
-                    HotKeyRecorderView(keyCombo: $settings.hotKey)
-                        .frame(width: 160, height: 28)
+            Section {
+                Toggle("Enable Global Hotkey", isOn: $settings.hotKeyEnabled)
+
+                if settings.hotKeyEnabled {
+                    HStack {
+                        Text("Search hotkey")
+                        Spacer()
+                        HotKeyRecorderView(keyCombo: $settings.hotKey)
+                            .frame(width: 160, height: 28)
+                    }
                 }
+            } header: {
+                Label("Global Hotkey", systemImage: "keyboard")
             }
 
             Section("Keyboard Shortcuts") {
@@ -55,6 +69,16 @@ struct ShortcutsPreferencesView: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 400)
+    }
+
+    @ViewBuilder
+    private func statRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value)
+                .monospacedDigit()
+        }
     }
 
     @ViewBuilder

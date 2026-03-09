@@ -10,8 +10,12 @@ final class AppSettings: ObservableObject {
 
   // MARK: - Trigger
 
-  @Published var triggerMethod: TriggerMethod = .forceClick {
-    didSet { defaults.set(triggerMethod.rawValue, forKey: Keys.triggerMethod) }
+  @Published var forceClickEnabled: Bool = true {
+    didSet { defaults.set(forceClickEnabled, forKey: Keys.forceClickEnabled) }
+  }
+
+  @Published var hotKeyEnabled: Bool = true {
+    didSet { defaults.set(hotKeyEnabled, forKey: Keys.hotKeyEnabled) }
   }
 
   @Published var hotKey: KeyCombo = .default {
@@ -146,8 +150,14 @@ final class AppSettings: ObservableObject {
   private func load() {
     let d = defaults
 
-    if let raw = d.string(forKey: Keys.triggerMethod), let val = TriggerMethod(rawValue: raw) {
-      triggerMethod = val
+    // Migrate legacy triggerMethod → forceClickEnabled
+    if d.object(forKey: Keys.forceClickEnabled) != nil {
+      forceClickEnabled = d.bool(forKey: Keys.forceClickEnabled)
+    } else if let raw = d.string(forKey: Keys.triggerMethod) {
+      forceClickEnabled = (raw == "forceClick")
+    }
+    if d.object(forKey: Keys.hotKeyEnabled) != nil {
+      hotKeyEnabled = d.bool(forKey: Keys.hotKeyEnabled)
     }
 
     let storedKeyCode = d.object(forKey: Keys.hotKeyKeyCode) as? UInt32
@@ -244,7 +254,8 @@ final class AppSettings: ObservableObject {
 
   func exportSettings() -> Data? {
     let dict: [String: Any] = [
-      Keys.triggerMethod: triggerMethod.rawValue,
+      Keys.forceClickEnabled: forceClickEnabled,
+      Keys.hotKeyEnabled: hotKeyEnabled,
       Keys.hotKeyKeyCode: hotKey.keyCode,
       Keys.hotKeyModifiers: hotKey.modifiers,
       Keys.pressureSensitivity: pressureSensitivity,
@@ -281,9 +292,8 @@ final class AppSettings: ObservableObject {
       return false
     }
 
-    if let raw = dict[Keys.triggerMethod] as? String, let val = TriggerMethod(rawValue: raw) {
-      triggerMethod = val
-    }
+    if let val = dict[Keys.forceClickEnabled] as? Bool { forceClickEnabled = val }
+    if let val = dict[Keys.hotKeyEnabled] as? Bool { hotKeyEnabled = val }
     if let kc = dict[Keys.hotKeyKeyCode] as? UInt32,
        let mod = dict[Keys.hotKeyModifiers] as? UInt32 {
       hotKey = KeyCombo(keyCode: kc, modifiers: NSEvent.ModifierFlags.fromCarbon(mod))

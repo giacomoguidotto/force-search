@@ -15,18 +15,6 @@ enum Theme: String, CaseIterable, Codable {
     }
 }
 
-enum TriggerMethod: String, CaseIterable, Codable {
-    case forceClick
-    case hotKeyOnly
-
-    var displayName: String {
-        switch self {
-        case .forceClick: return "Force Click"
-        case .hotKeyOnly: return "Hotkey Only"
-        }
-    }
-}
-
 enum LinkTarget: String, CaseIterable, Codable {
     case defaultBrowser
     case safari

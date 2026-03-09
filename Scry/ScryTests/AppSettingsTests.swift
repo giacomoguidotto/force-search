@@ -8,7 +8,8 @@ final class AppSettingsTests: XCTestCase {
         // Reset relevant UserDefaults keys before each test
         let defaults = UserDefaults.standard
         for key in [
-            Constants.UserDefaultsKeys.triggerMethod,
+            Constants.UserDefaultsKeys.forceClickEnabled,
+            Constants.UserDefaultsKeys.hotKeyEnabled,
             Constants.UserDefaultsKeys.pressureSensitivity,
             Constants.UserDefaultsKeys.panelWidth,
             Constants.UserDefaultsKeys.panelHeight,
@@ -24,7 +25,8 @@ final class AppSettingsTests: XCTestCase {
 
     func testDefaultValues() {
         let settings = AppSettings.shared
-        XCTAssertEqual(settings.triggerMethod, .forceClick)
+        XCTAssertTrue(settings.forceClickEnabled)
+        XCTAssertTrue(settings.hotKeyEnabled)
         XCTAssertEqual(settings.pressureSensitivity, Constants.Defaults.pressureSensitivity)
         XCTAssertEqual(settings.panelWidth, Constants.Panel.defaultWidth)
         XCTAssertEqual(settings.panelHeight, Constants.Panel.defaultHeight)

@@ -109,7 +109,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.performSearch(at: nil)
       }
       .store(in: &cancellables)
-    hotKeyService?.register(keyCombo: settings.hotKey)
+    if settings.hotKeyEnabled {
+      hotKeyService?.register(keyCombo: settings.hotKey)
+    }
   }
 
   private func observeSettings() {
@@ -117,18 +119,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     settings.$hotKey
       .dropFirst()
       .sink { [weak self] newKey in
-        self?.hotKeyService?.register(keyCombo: newKey)
+        guard let self = self else { return }
+        if self.settings.hotKeyEnabled {
+          self.hotKeyService?.register(keyCombo: newKey)
+        }
       }
       .store(in: &cancellables)
 
-    // Enable/disable event tap based on trigger method
-    settings.$triggerMethod
+    // Enable/disable hotkey
+    settings.$hotKeyEnabled
       .dropFirst()
-      .sink { [weak self] method in
-        switch method {
-        case .forceClick:
+      .sink { [weak self] enabled in
+        guard let self = self else { return }
+        if enabled {
+          self.hotKeyService?.register(keyCombo: self.settings.hotKey)
+        } else {
+          self.hotKeyService?.unregister()
+        }
+      }
+      .store(in: &cancellables)
+
+    // Enable/disable event tap based on force click setting
+    settings.$forceClickEnabled
+      .dropFirst()
+      .sink { [weak self] enabled in
+        if enabled {
           self?.eventTapService?.start()
-        case .hotKeyOnly:
+        } else {
           self?.eventTapService?.stop()
         }
       }
@@ -144,7 +161,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let self = self else { return }
         if allGranted {
           // Retry event tap when permissions become granted
-          if self.settings.triggerMethod == .forceClick {
+          if self.settings.forceClickEnabled {
             self.eventTapService?.restart()
           }
         } else {

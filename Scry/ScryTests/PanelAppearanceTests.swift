@@ -18,9 +18,10 @@ final class PanelAppearanceTests: XCTestCase {
         }
     }
 
-    func testTriggerMethodDisplayNames() {
-        XCTAssertFalse(TriggerMethod.forceClick.displayName.isEmpty)
-        XCTAssertFalse(TriggerMethod.hotKeyOnly.displayName.isEmpty)
+    func testForceClickAndHotKeyDefaults() {
+        let settings = AppSettings.shared
+        XCTAssertTrue(settings.forceClickEnabled)
+        XCTAssertTrue(settings.hotKeyEnabled)
     }
 
     func testLinkTargetBundleIdentifiers() {
