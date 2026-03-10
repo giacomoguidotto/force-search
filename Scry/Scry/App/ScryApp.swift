@@ -11,7 +11,8 @@ struct ScryApp: App {
                 onShowOnboarding: { appDelegate.showOnboarding() }
             )
         } label: {
-            Image(systemName: AppSettings.shared.menuBarIconStyle.symbolName)
+            Image("MenuBarIcon")
+                .renderingMode(.template)
         }
     }
 }
