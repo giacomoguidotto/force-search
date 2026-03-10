@@ -8,36 +8,6 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Status
-            HStack {
-                Circle()
-                    .fill(permissions.allPermissionsGranted ? .green : .orange)
-                    .frame(width: 8, height: 8)
-                Text(permissions.allPermissionsGranted ? "Active" : "Permissions Required")
-                    .font(.subheadline)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-
-            Divider()
-
-            // Trigger info
-            if settings.forceClickEnabled {
-                Label("Force Click to search", systemImage: "hand.tap")
-                    .font(.subheadline)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-            }
-
-            if settings.hotKeyEnabled {
-                Label("Hotkey: \(settings.hotKey.displayString)", systemImage: "keyboard")
-                    .font(.subheadline)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-            }
-
-            Divider()
-
             // Toggles
             Toggle("Force Click", isOn: $settings.forceClickEnabled)
                 .toggleStyle(.switch)
