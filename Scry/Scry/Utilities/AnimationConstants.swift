@@ -34,6 +34,14 @@ enum AnimationConstants {
         static let springDuration: TimeInterval = 0.35
     }
 
+    enum Ripple {
+        static let startRadius: CGFloat = 8
+        static let maxRadius: CGFloat = 60
+        static let lineWidth: CGFloat = 1.5
+        static let peakOpacity: Float = 0.6
+        static let duration: TimeInterval = 0.4
+    }
+
     enum Loading {
         static let barHeight: CGFloat = 2
     }

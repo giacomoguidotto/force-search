@@ -57,6 +57,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let position = point ?? NSEvent.mouseLocation
 
+    // Instant visual feedback before async work begins
+    RippleOverlay.show(at: position)
+
     Task { @MainActor in
       let query = await textExtractorService?.extractText(at: position)
 
