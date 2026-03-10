@@ -9,9 +9,11 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             // Header
             VStack(spacing: 8) {
-                Image(systemName: "sparkle.magnifyingglass")
-                    .font(.system(size: 48))
-                    .foregroundColor(.accentColor)
+                Image("ScryIcon")
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 Text("Welcome to Scry")
                     .font(.title.bold())
                 Text("Replace Look Up with instant search")

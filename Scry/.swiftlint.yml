@@ -5,6 +5,8 @@ excluded:
 disabled_rules:
   - trailing_comma
 
+indentation: 2
+
 line_length:
   warning: 150
   error: 200
