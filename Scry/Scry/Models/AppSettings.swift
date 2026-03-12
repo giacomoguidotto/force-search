@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import ServiceManagement
 
 final class AppSettings: ObservableObject {
   static let shared = AppSettings()
@@ -98,7 +99,10 @@ final class AppSettings: ObservableObject {
   // MARK: - System
 
   @Published var launchAtLogin: Bool = false {
-    didSet { defaults.set(launchAtLogin, forKey: Keys.launchAtLogin) }
+    didSet {
+      defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+      updateLaunchAtLogin()
+    }
   }
 
   @Published var showMenuBarIcon: Bool = true {
@@ -341,5 +345,20 @@ final class AppSettings: ObservableObject {
       return lastUsedProvider
     }
     return defaultProvider
+  }
+
+  // MARK: - Launch at Login
+
+  private func updateLaunchAtLogin() {
+    let service = SMAppService.mainApp
+    do {
+      if launchAtLogin {
+        try service.register()
+      } else {
+        try service.unregister()
+      }
+    } catch {
+      DebugLogStore.shared.log("Settings", "Launch at login failed: \(error.localizedDescription)", level: .error)
+    }
   }
 }

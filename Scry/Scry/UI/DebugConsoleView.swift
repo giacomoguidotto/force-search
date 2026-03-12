@@ -40,30 +40,32 @@ struct DebugConsoleView: View {
             Divider()
 
             // Log toolbar
-            HStack {
-                Text("Event Log (\(log.filteredEntries.count))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                Picker("Level", selection: $log.filterLevel) {
-                    ForEach(LogLevel.allCases, id: \.self) { level in
-                        Text(level.label).tag(level)
+            VStack(spacing: 4) {
+                HStack {
+                    Text("Event Log (\(log.filteredEntries.count))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Picker("Level", selection: $log.filterLevel) {
+                        ForEach(LogLevel.allCases, id: \.self) { level in
+                            Text(level.label).tag(level)
+                        }
                     }
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 220)
-
-                Spacer()
-
-                Toggle("Auto-scroll", isOn: $autoScroll)
-                    .toggleStyle(.checkbox)
-                    .font(.caption)
-                Button("Copy All") { copyAll() }
-                    .font(.caption)
-                    .controlSize(.small)
-                Button("Clear") { log.clear() }
-                    .font(.caption)
-                    .controlSize(.small)
+                HStack {
+                    Toggle("Auto-scroll", isOn: $autoScroll)
+                        .toggleStyle(.checkbox)
+                        .font(.caption)
+                    Spacer()
+                    Button("Copy All") { copyAll() }
+                        .font(.caption)
+                        .controlSize(.small)
+                    Button("Clear") { log.clear() }
+                        .font(.caption)
+                        .controlSize(.small)
+                }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -87,7 +89,7 @@ struct DebugConsoleView: View {
                 }
             }
         }
-        .frame(minWidth: 600, minHeight: 400)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { permissions.checkAll() }
     }
 
