@@ -11,8 +11,8 @@ struct DebugConsoleView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Status summary
-            GroupBox("Status") {
-                VStack(alignment: .leading, spacing: 6) {
+            DisclosureGroup("Status") {
+                VStack(alignment: .leading, spacing: 4) {
                     statusRow("Accessibility", permissions.accessibilityGranted)
                     statusRow("Input Monitoring", permissions.inputMonitoringGranted)
                     statusRow("Screen Recording", permissions.screenRecordingGranted)
@@ -23,16 +23,13 @@ struct DebugConsoleView: View {
                     keyValue("Pressure threshold", String(format: "%.2f", settings.pressureSensitivity))
                     keyValue("Event tap", log.eventTapStatus)
                     Divider()
-                    HStack {
-                        Button("Refresh") {
-                            permissions.checkAll()
-                            refreshID = UUID()
-                        }
-                        .controlSize(.small)
+                    Button("Refresh") {
+                        permissions.checkAll()
+                        refreshID = UUID()
                     }
+                    .controlSize(.small)
                 }
                 .font(.system(.caption, design: .monospaced))
-                .padding(4)
                 .id(refreshID)
             }
             .padding(8)
@@ -40,32 +37,32 @@ struct DebugConsoleView: View {
             Divider()
 
             // Log toolbar
-            VStack(spacing: 4) {
-                HStack {
-                    Text("Event Log (\(log.filteredEntries.count))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Picker("Level", selection: $log.filterLevel) {
-                        ForEach(LogLevel.allCases, id: \.self) { level in
-                            Text(level.label).tag(level)
-                        }
+            HStack(spacing: 6) {
+                Text("Event Log (\(log.filteredEntries.count))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+
+                Picker("Level", selection: $log.filterLevel) {
+                    ForEach(LogLevel.allCases, id: \.self) { level in
+                        Text(level.label).tag(level)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
                 }
-                HStack {
-                    Toggle("Auto-scroll", isOn: $autoScroll)
-                        .toggleStyle(.checkbox)
-                        .font(.caption)
-                    Spacer()
-                    Button("Copy All") { copyAll() }
-                        .font(.caption)
-                        .controlSize(.small)
-                    Button("Clear") { log.clear() }
-                        .font(.caption)
-                        .controlSize(.small)
-                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+
+                Toggle("Auto-scroll", isOn: $autoScroll)
+                    .toggleStyle(.checkbox)
+                    .font(.caption)
+                    .fixedSize()
+
+                Button("Copy All") { copyAll() }
+                    .font(.caption)
+                    .controlSize(.small)
+                Button("Clear") { log.clear() }
+                    .font(.caption)
+                    .controlSize(.small)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
