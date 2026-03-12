@@ -40,8 +40,10 @@ final class PermissionsService: ObservableObject {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Trackpad-Settings.extension")!)
     }
 
-    /// Opens System Settings → Screen Recording so the user can grant permission.
+    /// Prompts for Screen Recording access and opens the Settings pane.
     func requestScreenRecording() {
+        // Register the app in the list (first call shows system prompt on macOS 15+)
+        CGRequestScreenCaptureAccess()
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
     }
 
@@ -72,10 +74,9 @@ final class PermissionsService: ObservableObject {
     // MARK: - Private
 
     private func checkScreenRecording() -> Bool {
-        // CGWindowListCreateImage returns nil when Screen Recording permission is missing
-        let rect = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let image = CGWindowListCreateImage(rect, .optionOnScreenOnly, kCGNullWindowID, .bestResolution)
-        return image != nil
+        // CGPreflightScreenCaptureAccess reflects the live permission state
+        // without the caching issues of CGWindowListCreateImage.
+        return CGPreflightScreenCaptureAccess()
     }
 
     private func checkInputMonitoring() -> Bool {
