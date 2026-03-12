@@ -4,7 +4,7 @@ import Vision
 
 struct OCRResult {
     let fullText: String
-    let wordNearestCenter: String?
+    let lineNearestCenter: String?
 }
 
 final class OCRService {
@@ -31,10 +31,10 @@ final class OCRService {
                     .compactMap { $0.topCandidates(1).first?.string }
                     .joined(separator: " ")
 
-                let centerWord = Self.findWordNearestCenter(observations: observations)
+                let centerLine = Self.findLineNearestCenter(observations: observations)
 
-                DebugLogStore.shared.log("OCR", "Recognized \(observations.count) lines, center word: \(centerWord ?? "none")", level: .debug)
-                continuation.resume(returning: OCRResult(fullText: fullText, wordNearestCenter: centerWord))
+                DebugLogStore.shared.log("OCR", "Recognized \(observations.count) lines, center line: \(centerLine ?? "none")", level: .debug)
+                continuation.resume(returning: OCRResult(fullText: fullText, lineNearestCenter: centerLine))
             }
 
             request.recognitionLevel = .accurate
@@ -50,45 +50,31 @@ final class OCRService {
         }
     }
 
-    /// Finds the word whose bounding box is nearest to the center of the image.
-    static func findWordNearestCenter(observations: [VNRecognizedTextObservation]) -> String? {
+    /// Finds the text line whose bounding box is nearest to the center of the image.
+    static func findLineNearestCenter(observations: [VNRecognizedTextObservation]) -> String? {
         let imageCenter = CGPoint(x: 0.5, y: 0.5)
-        var bestWord: String?
+        var bestLine: String?
         var bestDistance: CGFloat = .greatestFiniteMagnitude
 
         for observation in observations {
             guard let candidate = observation.topCandidates(1).first else { continue }
-            let fullString = candidate.string
 
-            let tokenizer = NLTokenizer(unit: .word)
-            tokenizer.string = fullString
+            let box = observation.boundingBox
+            let center = CGPoint(
+                x: box.origin.x + box.width / 2,
+                y: box.origin.y + box.height / 2
+            )
 
-            tokenizer.enumerateTokens(in: fullString.startIndex..<fullString.endIndex) { tokenRange, _ in
-                let word = String(fullString[tokenRange])
+            let dx = center.x - imageCenter.x
+            let dy = center.y - imageCenter.y
+            let distance = dx * dx + dy * dy
 
-                guard let boxRange = try? candidate.boundingBox(for: tokenRange) else {
-                    return true
-                }
-
-                let box = boxRange.boundingBox
-                let center = CGPoint(
-                    x: box.origin.x + box.width / 2,
-                    y: box.origin.y + box.height / 2
-                )
-
-                let dx = center.x - imageCenter.x
-                let dy = center.y - imageCenter.y
-                let distance = dx * dx + dy * dy
-
-                if distance < bestDistance {
-                    bestDistance = distance
-                    bestWord = word
-                }
-
-                return true
+            if distance < bestDistance {
+                bestDistance = distance
+                bestLine = candidate.string
             }
         }
 
-        return bestWord
+        return bestLine
     }
 }

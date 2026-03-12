@@ -39,10 +39,10 @@ final class AIProviderTests: XCTestCase {
         XCTAssertTrue(LLMService.systemPrompt.contains("Scry"))
     }
 
-    // MARK: - OCR Word Finding
+    // MARK: - OCR Line Finding
 
-    func testFindWordNearestCenterWithEmptyObservations() {
-        let result = OCRService.findWordNearestCenter(observations: [])
+    func testFindLineNearestCenterWithEmptyObservations() {
+        let result = OCRService.findLineNearestCenter(observations: [])
         XCTAssertNil(result)
     }
 

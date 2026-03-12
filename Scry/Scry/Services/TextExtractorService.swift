@@ -36,7 +36,7 @@ final class TextExtractorService {
         // Fallback: Screenshot + OCR
         captureScreenshot(at: cursorPoint)
         if let screenshot = lastScreenshot, let ocrResult = await ocrService.recognizeText(in: screenshot) {
-            let text = ocrResult.wordNearestCenter ?? ocrResult.fullText
+            let text = ocrResult.lineNearestCenter ?? ocrResult.fullText
             if !text.isEmpty {
                 debugLog.log("TextExtractor", "Got text via OCR: \"\(text)\"", level: .debug)
                 return text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -130,6 +130,12 @@ final class TextExtractorService {
             return nil
         }
 
+        // For short text (labels, headings, buttons), return the full element value.
+        // For longer text, extract the sentence at the cursor position.
+        if fullText.count <= 120 {
+            return fullText
+        }
+
         var rangeValue: AnyObject?
         let rangeResult = AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeValue)
 
@@ -141,14 +147,14 @@ final class TextExtractorService {
             offset = range.location
         }
 
-        return wordAt(offset: offset, in: fullText)
+        return sentenceAt(offset: offset, in: fullText)
     }
 
     // MARK: - Helpers
 
-    /// Uses NLTokenizer to find the word at the given character offset.
-    private func wordAt(offset: Int, in text: String) -> String? {
-        let tokenizer = NLTokenizer(unit: .word)
+    /// Uses NLTokenizer to find the sentence at the given character offset.
+    private func sentenceAt(offset: Int, in text: String) -> String? {
+        let tokenizer = NLTokenizer(unit: .sentence)
         tokenizer.string = text
 
         let index = text.index(text.startIndex, offsetBy: min(offset, text.count - 1), limitedBy: text.endIndex) ?? text.startIndex
