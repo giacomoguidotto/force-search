@@ -124,6 +124,7 @@ final class PreferencesWindowController: NSObject {
         win.isReleasedWhenClosed = false
         win.delegate = self
         win.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
         self.window = win
@@ -133,5 +134,6 @@ final class PreferencesWindowController: NSObject {
 extension PreferencesWindowController: NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         window = nil
+        AppActivationPolicy.updatePolicy()
     }
 }

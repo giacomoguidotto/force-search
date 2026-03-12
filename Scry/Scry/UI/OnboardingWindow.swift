@@ -151,7 +151,7 @@ struct OnboardingView: View {
     }
 }
 
-final class OnboardingWindowController {
+final class OnboardingWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
 
     func showIfNeeded() {
@@ -162,12 +162,12 @@ final class OnboardingWindowController {
     func show() {
         if let existing = window {
             existing.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
         let onboardingView = OnboardingView {
             self.window?.close()
-            self.window = nil
         }
 
         let hostingView = NSHostingView(rootView: onboardingView)
@@ -181,8 +181,16 @@ final class OnboardingWindowController {
         win.title = "Scry Setup"
         win.center()
         win.isReleasedWhenClosed = false
+        win.delegate = self
         win.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
 
         self.window = win
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        window = nil
+        AppActivationPolicy.updatePolicy()
     }
 }
