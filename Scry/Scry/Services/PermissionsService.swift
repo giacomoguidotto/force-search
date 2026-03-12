@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Combine
+import ScreenCaptureKit
 
 final class PermissionsService: ObservableObject {
     static let shared = PermissionsService()
@@ -21,10 +22,10 @@ final class PermissionsService: ObservableObject {
     }
 
     func checkAll() {
-        accessibilityGranted = AXIsProcessTrusted()
+        accessibilityGranted = checkAccessibility()
         inputMonitoringGranted = checkInputMonitoring()
-        screenRecordingGranted = checkScreenRecording()
         lookUpConflictDetected = checkLookUpConflict()
+        checkScreenRecordingAsync()
     }
 
     /// Prompts for Accessibility access and opens the Settings pane.
@@ -73,16 +74,47 @@ final class PermissionsService: ObservableObject {
 
     // MARK: - Private
 
-    private func checkScreenRecording() -> Bool {
-        // CGPreflightScreenCaptureAccess reflects the live permission state
-        // without the caching issues of CGWindowListCreateImage.
-        return CGPreflightScreenCaptureAccess()
+    /// AXIsProcessTrusted() caches its result for the process lifetime.
+    /// Instead, probe the accessibility API directly: query the focused
+    /// application's AXUIElement for its role. A successful response means
+    /// we have accessibility permission; an error means it was revoked.
+    private func checkAccessibility() -> Bool {
+        let systemWide = AXUIElementCreateSystemWide()
+        var value: AnyObject?
+        let result = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &value)
+        return result == .success || result == .noValue
     }
 
+    /// CGPreflightListenEventAccess() caches its result for the process
+    /// lifetime. Instead, attempt to create a default-mode event tap which
+    /// requires Input Monitoring permission. If the tap is created
+    /// successfully we immediately disable and release it.
     private func checkInputMonitoring() -> Bool {
-        // CGPreflightListenEventAccess() returns true if we have input monitoring permission.
-        // Available macOS 10.15+
-        return CGPreflightListenEventAccess()
+        let tap = CGEvent.tapCreate(
+            tap: .cghidEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: CGEventMask(1 << CGEventType.mouseMoved.rawValue),
+            callback: { _, _, event, _ in Unmanaged.passRetained(event) },
+            userInfo: nil
+        )
+        if let tap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            return true
+        }
+        return false
+    }
+
+    /// Checks screen recording permission via SCShareableContent which performs
+    /// a fresh TCC lookup on every call (unlike CGPreflightScreenCaptureAccess
+    /// which caches the result for the process lifetime).
+    private func checkScreenRecordingAsync() {
+        SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: false) { [weak self] content, error in
+            let granted = error == nil && content != nil
+            DispatchQueue.main.async {
+                self?.screenRecordingGranted = granted
+            }
+        }
     }
 
     /// Returns true when macOS Look Up is set to fire on force-click, which conflicts with Scry.
