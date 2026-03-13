@@ -13,7 +13,7 @@ final class PermissionsService: ObservableObject {
     @Published private(set) var globeKeyConflict: Bool = false
 
     var allPermissionsGranted: Bool {
-        accessibilityGranted && inputMonitoringGranted && screenRecordingGranted
+        accessibilityGranted && inputMonitoringGranted
     }
 
     private var pollTimer: Timer?
@@ -27,6 +27,12 @@ final class PermissionsService: ObservableObject {
         inputMonitoringGranted = checkInputMonitoring()
         lookUpConflictDetected = checkLookUpConflict()
         globeKeyConflict = checkGlobeKeyConflict()
+    }
+
+    /// Check screen recording separately — SCShareableContent triggers the
+    /// system permission prompt, so only call this when the user explicitly
+    /// requests screen recording or when it's actually needed.
+    func checkScreenRecording() {
         checkScreenRecordingAsync()
     }
 
