@@ -13,7 +13,7 @@ final class PermissionsService: ObservableObject {
     @Published private(set) var globeKeyConflict: Bool = false
 
     var allPermissionsGranted: Bool {
-        accessibilityGranted && inputMonitoringGranted
+        accessibilityGranted
     }
 
     private var pollTimer: Timer?

@@ -58,17 +58,9 @@ struct OnboardingView: View {
                 permissionStep(
                     number: showGlobeStep ? 3 : 2,
                     title: "Accessibility Access",
-                    description: "Required to read selected text from any application.",
+                    description: "Required to read selected text and detect force-click gestures.",
                     granted: permissions.accessibilityGranted,
                     action: { permissions.requestAccessibility() }
-                )
-
-                permissionStep(
-                    number: showGlobeStep ? 4 : 3,
-                    title: "Input Monitoring",
-                    description: "Required to detect force-click gestures on the trackpad.",
-                    granted: permissions.inputMonitoringGranted,
-                    action: { permissions.requestInputMonitoring() }
                 )
             }
             .padding(24)

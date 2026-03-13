@@ -203,8 +203,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // React to permission changes
     permissions.$accessibilityGranted
-      .combineLatest(permissions.$inputMonitoringGranted)
-      .map { $0 && $1 }
       .removeDuplicates()
       .dropFirst()
       .sink { [weak self] allGranted in
