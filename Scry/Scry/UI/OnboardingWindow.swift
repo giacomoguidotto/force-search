@@ -153,6 +153,7 @@ struct OnboardingView: View {
 
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    private var keyMonitor: Any?
 
     func showIfNeeded() {
         guard !AppSettings.shared.hasCompletedOnboarding else { return }
@@ -187,10 +188,31 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         self.window = win
+        startKeyMonitor()
     }
 
     func windowWillClose(_ notification: Notification) {
+        stopKeyMonitor()
         window = nil
         AppActivationPolicy.updatePolicy()
+    }
+
+    private func startKeyMonitor() {
+        stopKeyMonitor()
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if flags == .command, event.keyCode == 43 { // kVK_ANSI_Comma
+                AppDelegate.shared?.showPreferences()
+                return nil
+            }
+            return event
+        }
+    }
+
+    private func stopKeyMonitor() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
     }
 }

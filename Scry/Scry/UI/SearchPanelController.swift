@@ -514,8 +514,8 @@ final class SearchPanelController: NSObject {
         }
 
         // Cmd+, → open preferences
-        if flags.contains(.command) && event.charactersIgnoringModifiers == "," {
-            (NSApp.delegate as? AppDelegate)?.showPreferences()
+        if flags.contains(.command) && event.keyCode == 43 { // kVK_ANSI_Comma
+            AppDelegate.shared?.showPreferences()
             return true
         }
 

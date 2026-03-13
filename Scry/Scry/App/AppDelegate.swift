@@ -2,6 +2,8 @@ import AppKit
 import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+  static private(set) weak var shared: AppDelegate?
+
   private let settings = AppSettings.shared
   private let permissions = PermissionsService.shared
   private var onboardingController = OnboardingWindowController()
@@ -13,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var cancellables = Set<AnyCancellable>()
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    AppDelegate.shared = self
+
     // Check permissions on launch
     permissions.checkAll()
 
