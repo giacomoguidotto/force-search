@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var eventTapService: EventTapService?
   private var textExtractorService: TextExtractorService?
   private var hotKeyService: HotKeyService?
+  private var doubleTapService: DoubleTapService?
   private var searchPanelController: SearchPanelController?
   private var cancellables = Set<AnyCancellable>()
 
@@ -35,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationWillTerminate(_ notification: Notification) {
     eventTapService?.stop()
     hotKeyService?.unregister()
+    doubleTapService?.stop()
     searchPanelController?.dismiss()
   }
 
@@ -126,6 +128,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if settings.hotKeyEnabled {
       hotKeyService?.register(keyCombo: settings.hotKey)
     }
+
+    // Double-tap modifier service
+    doubleTapService = DoubleTapService()
+    doubleTapService?.doubleTapPublisher
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] in
+        self?.performSearch(at: nil)
+      }
+      .store(in: &cancellables)
+    if settings.doubleTapEnabled {
+      doubleTapService?.start(modifier: settings.doubleTapModifier)
+    }
   }
 
   private func observeSettings() {
@@ -150,6 +164,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
           self.hotKeyService?.unregister()
         }
+      }
+      .store(in: &cancellables)
+
+    // Enable/disable double-tap modifier
+    settings.$doubleTapEnabled
+      .dropFirst()
+      .sink { [weak self] enabled in
+        guard let self = self else { return }
+        if enabled {
+          self.doubleTapService?.start(modifier: self.settings.doubleTapModifier)
+        } else {
+          self.doubleTapService?.stop()
+        }
+      }
+      .store(in: &cancellables)
+
+    // Restart double-tap when modifier choice changes
+    settings.$doubleTapModifier
+      .dropFirst()
+      .sink { [weak self] modifier in
+        guard let self = self, self.settings.doubleTapEnabled else { return }
+        self.doubleTapService?.start(modifier: modifier)
       }
       .store(in: &cancellables)
 

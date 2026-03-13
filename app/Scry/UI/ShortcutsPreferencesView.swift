@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ShortcutsPreferencesView: View {
     @ObservedObject var settings = AppSettings.shared
+    @ObservedObject var permissions = PermissionsService.shared
     @State private var isRecording = false
     @State private var recordedKeyCombo: KeyCombo?
 
@@ -39,6 +40,47 @@ struct ShortcutsPreferencesView: View {
             }
 
             Section {
+                Toggle(globeIsSingleTap
+                       ? "Tap modifier to search"
+                       : "Double-tap modifier to search",
+                       isOn: $settings.doubleTapEnabled)
+
+                if settings.doubleTapEnabled {
+                    Picker("Modifier key", selection: $settings.doubleTapModifier) {
+                        ForEach(DoubleTapModifier.allCases) { modifier in
+                            Text(modifier.displayName).tag(modifier)
+                        }
+                    }
+
+                    if settings.doubleTapModifier == .globe && permissions.globeKeyConflict {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Globe key has a system action assigned.")
+                                    .font(.caption)
+                                Text("Set \"Press Globe key to\" \u{2192} \"Do Nothing\" in System Settings \u{2192} Keyboard to use single-tap.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Button("Open Keyboard Settings") {
+                                    permissions.openKeyboardSettings()
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Label("Modifier Key", systemImage: "globe")
+            } footer: {
+                Text(globeIsSingleTap
+                     ? "Tap the Globe key to trigger a search."
+                     : "Quickly tap the chosen modifier key twice to trigger a search.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section {
                 Toggle("Enable Global Hotkey", isOn: $settings.hotKeyEnabled)
 
                 if settings.hotKeyEnabled {
@@ -56,6 +98,7 @@ struct ShortcutsPreferencesView: View {
             Section("Keyboard Shortcuts") {
                 VStack(alignment: .leading, spacing: 8) {
                     shortcutRow("Force Click", "Force-click on selected text")
+                    shortcutRow(doubleTapShortcutLabel, "Double-tap modifier")
                     shortcutRow(settings.hotKey.displayString, "Global search hotkey")
                     shortcutRow("⎋", "Close panel")
                     shortcutRow("⌘1–9", "Switch provider tabs")
@@ -69,6 +112,23 @@ struct ShortcutsPreferencesView: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 400)
+    }
+
+    private var globeIsSingleTap: Bool {
+        settings.doubleTapModifier == .globe && !permissions.globeKeyConflict
+    }
+
+    private var doubleTapShortcutLabel: String {
+        let symbol: String = {
+            switch settings.doubleTapModifier {
+            case .globe: return "fn"
+            case .command: return "\u{2318}"
+            case .option: return "\u{2325}"
+            case .control: return "\u{2303}"
+            case .shift: return "\u{21E7}"
+            }
+        }()
+        return globeIsSingleTap ? symbol : "\(symbol)\(symbol)"
     }
 
     @ViewBuilder

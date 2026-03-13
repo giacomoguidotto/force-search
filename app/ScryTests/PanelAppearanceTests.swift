@@ -21,7 +21,9 @@ final class PanelAppearanceTests: XCTestCase {
     func testForceClickAndHotKeyDefaults() {
         let settings = AppSettings.shared
         XCTAssertTrue(settings.forceClickEnabled)
-        XCTAssertTrue(settings.hotKeyEnabled)
+        XCTAssertTrue(settings.doubleTapEnabled)
+        XCTAssertEqual(settings.doubleTapModifier, .globe)
+        XCTAssertFalse(settings.hotKeyEnabled)
     }
 
     func testLinkTargetBundleIdentifiers() {

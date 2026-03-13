@@ -10,6 +10,7 @@ final class PermissionsService: ObservableObject {
     @Published private(set) var inputMonitoringGranted: Bool = false
     @Published private(set) var screenRecordingGranted: Bool = false
     @Published private(set) var lookUpConflictDetected: Bool = false
+    @Published private(set) var globeKeyConflict: Bool = false
 
     var allPermissionsGranted: Bool {
         accessibilityGranted && inputMonitoringGranted && screenRecordingGranted
@@ -25,6 +26,7 @@ final class PermissionsService: ObservableObject {
         accessibilityGranted = checkAccessibility()
         inputMonitoringGranted = checkInputMonitoring()
         lookUpConflictDetected = checkLookUpConflict()
+        globeKeyConflict = checkGlobeKeyConflict()
         checkScreenRecordingAsync()
     }
 
@@ -115,6 +117,21 @@ final class PermissionsService: ObservableObject {
                 self?.screenRecordingGranted = granted
             }
         }
+    }
+
+    /// Opens System Settings → Keyboard so the user can change Globe key behavior.
+    func openKeyboardSettings() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
+    }
+
+    /// Returns true when the Globe key is configured to trigger a system action
+    /// (emoji picker or input source switch), which interferes with double-tap detection.
+    /// AppleFnUsageType: 0 = Do Nothing, 1 = Change Input Source, 2 = Show Emoji (default).
+    private func checkGlobeKeyConflict() -> Bool {
+        guard let defaults = UserDefaults(suiteName: "com.apple.HIToolbox") else { return true }
+        let usageType = defaults.integer(forKey: "AppleFnUsageType")
+        // 0 means "Do Nothing" — no conflict
+        return usageType != 0
     }
 
     /// Returns true when macOS Look Up is set to fire on force-click, which conflicts with Scry.

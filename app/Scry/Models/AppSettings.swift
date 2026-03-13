@@ -15,7 +15,15 @@ final class AppSettings: ObservableObject {
     didSet { defaults.set(forceClickEnabled, forKey: Keys.forceClickEnabled) }
   }
 
-  @Published var hotKeyEnabled: Bool = true {
+  @Published var doubleTapEnabled: Bool = true {
+    didSet { defaults.set(doubleTapEnabled, forKey: Keys.doubleTapEnabled) }
+  }
+
+  @Published var doubleTapModifier: DoubleTapModifier = .globe {
+    didSet { defaults.set(doubleTapModifier.rawValue, forKey: Keys.doubleTapModifier) }
+  }
+
+  @Published var hotKeyEnabled: Bool = false {
     didSet { defaults.set(hotKeyEnabled, forKey: Keys.hotKeyEnabled) }
   }
 
@@ -153,12 +161,26 @@ final class AppSettings: ObservableObject {
 
   private func load() {
     let d = defaults
+    loadTriggerSettings(from: d)
+    loadAppearanceSettings(from: d)
+    loadBehaviorSettings(from: d)
+    loadSystemSettings(from: d)
+    loadAISettings(from: d)
+  }
 
+  private func loadTriggerSettings(from d: UserDefaults) {
     // Migrate legacy triggerMethod → forceClickEnabled
     if d.object(forKey: Keys.forceClickEnabled) != nil {
       forceClickEnabled = d.bool(forKey: Keys.forceClickEnabled)
     } else if let raw = d.string(forKey: Keys.triggerMethod) {
       forceClickEnabled = (raw == "forceClick")
+    }
+    if d.object(forKey: Keys.doubleTapEnabled) != nil {
+      doubleTapEnabled = d.bool(forKey: Keys.doubleTapEnabled)
+    }
+    if let raw = d.string(forKey: Keys.doubleTapModifier),
+       let val = DoubleTapModifier(rawValue: raw) {
+      doubleTapModifier = val
     }
     if d.object(forKey: Keys.hotKeyEnabled) != nil {
       hotKeyEnabled = d.bool(forKey: Keys.hotKeyEnabled)
@@ -173,7 +195,9 @@ final class AppSettings: ObservableObject {
     if d.object(forKey: Keys.pressureSensitivity) != nil {
       pressureSensitivity = d.double(forKey: Keys.pressureSensitivity)
     }
+  }
 
+  private func loadAppearanceSettings(from d: UserDefaults) {
     if d.object(forKey: Keys.panelWidth) != nil {
       panelWidth = d.double(forKey: Keys.panelWidth)
     }
@@ -192,7 +216,9 @@ final class AppSettings: ObservableObject {
     if let raw = d.string(forKey: Keys.theme), let val = Theme(rawValue: raw) {
       theme = val
     }
+  }
 
+  private func loadBehaviorSettings(from d: UserDefaults) {
     if let val = d.string(forKey: Keys.defaultProvider) {
       defaultProvider = val
     }
@@ -214,14 +240,15 @@ final class AppSettings: ObservableObject {
     if d.object(forKey: Keys.maxQueryLength) != nil {
       maxQueryLength = d.integer(forKey: Keys.maxQueryLength)
     }
-
     if let val = d.array(forKey: Keys.enabledProviders) as? [String] {
       enabledProviders = val
     }
     if let val = d.array(forKey: Keys.providerOrder) as? [String] {
       providerOrder = val
     }
+  }
 
+  private func loadSystemSettings(from d: UserDefaults) {
     if d.object(forKey: Keys.launchAtLogin) != nil {
       launchAtLogin = d.bool(forKey: Keys.launchAtLogin)
     }
@@ -235,8 +262,6 @@ final class AppSettings: ObservableObject {
     if d.object(forKey: Keys.hasCompletedOnboarding) != nil {
       hasCompletedOnboarding = d.bool(forKey: Keys.hasCompletedOnboarding)
     }
-
-    loadAISettings(from: d)
   }
 
   private func loadAISettings(from d: UserDefaults) {
@@ -259,6 +284,8 @@ final class AppSettings: ObservableObject {
   func exportSettings() -> Data? {
     let dict: [String: Any] = [
       Keys.forceClickEnabled: forceClickEnabled,
+      Keys.doubleTapEnabled: doubleTapEnabled,
+      Keys.doubleTapModifier: doubleTapModifier.rawValue,
       Keys.hotKeyEnabled: hotKeyEnabled,
       Keys.hotKeyKeyCode: hotKey.keyCode,
       Keys.hotKeyModifiers: hotKey.modifiers,
@@ -297,6 +324,9 @@ final class AppSettings: ObservableObject {
     }
 
     if let val = dict[Keys.forceClickEnabled] as? Bool { forceClickEnabled = val }
+    if let val = dict[Keys.doubleTapEnabled] as? Bool { doubleTapEnabled = val }
+    if let raw = dict[Keys.doubleTapModifier] as? String,
+       let val = DoubleTapModifier(rawValue: raw) { doubleTapModifier = val }
     if let val = dict[Keys.hotKeyEnabled] as? Bool { hotKeyEnabled = val }
     if let kc = dict[Keys.hotKeyKeyCode] as? UInt32,
        let mod = dict[Keys.hotKeyModifiers] as? UInt32 {
