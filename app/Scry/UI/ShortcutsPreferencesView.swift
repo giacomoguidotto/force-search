@@ -3,19 +3,39 @@ import SwiftUI
 struct ShortcutsPreferencesView: View {
     @ObservedObject var settings = AppSettings.shared
     @ObservedObject var permissions = PermissionsService.shared
-    @State private var isRecording = false
-    @State private var recordedKeyCombo: KeyCombo?
 
     /// Computed hold duration matching EventTapService.requiredHoldDuration().
     private var holdDuration: Double {
         let sensitivity = settings.pressureSensitivity
-        let minDelay = 0.2
-        let maxDelay = 0.7
-        return minDelay + (1.0 - sensitivity) * (maxDelay - minDelay)
+        return 0.2 + (1.0 - sensitivity) * 0.5
     }
 
     var body: some View {
         Form {
+            Section {
+                HStack {
+                    Text("Scry Hotkey")
+                    Spacer()
+                    UnifiedHotKeyRecorderView(
+                        doubleTapEnabled: $settings.doubleTapEnabled,
+                        doubleTapModifier: $settings.doubleTapModifier,
+                        hotKeyEnabled: $settings.hotKeyEnabled,
+                        hotKey: $settings.hotKey
+                    )
+                    .frame(width: 160, height: 28)
+                }
+
+                if showGlobeWarning {
+                    globeConflictBanner
+                }
+            } header: {
+                Label("Hotkey", systemImage: "keyboard")
+            } footer: {
+                Text(hotkeyFooter)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 Toggle("Enable Force Click", isOn: $settings.forceClickEnabled)
 
@@ -25,120 +45,92 @@ struct ShortcutsPreferencesView: View {
                         Slider(value: $settings.pressureSensitivity, in: 0.1...1.0, step: 0.05)
                         Text("\(Int(settings.pressureSensitivity * 100))%")
                             .monospacedDigit()
-                            .frame(width: 48, alignment: .trailing)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 40, alignment: .trailing)
                     }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        statRow("Hold time", String(format: "%.2fs", holdDuration))
-                        statRow("Max drift", "4pt")
+                    HStack(spacing: 16) {
+                        Label(String(format: "%.2fs hold", holdDuration), systemImage: "timer")
+                        Label("4pt drift max", systemImage: "arrow.up.left.and.arrow.down.right")
                     }
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.tertiary)
                 }
             } header: {
                 Label("Force Click", systemImage: "hand.tap")
             }
 
-            Section {
-                Toggle(globeIsSingleTap
-                       ? "Tap modifier to search"
-                       : "Double-tap modifier to search",
-                       isOn: $settings.doubleTapEnabled)
-
-                if settings.doubleTapEnabled {
-                    Picker("Modifier key", selection: $settings.doubleTapModifier) {
-                        ForEach(DoubleTapModifier.allCases) { modifier in
-                            Text(modifier.displayName).tag(modifier)
-                        }
-                    }
-
-                    if settings.doubleTapModifier == .globe && permissions.globeKeyConflict {
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Globe key has a system action assigned.")
-                                    .font(.caption)
-                                Text("Set \"Press Globe key to\" \u{2192} \"Do Nothing\" in System Settings \u{2192} Keyboard to use single-tap.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Button("Open Keyboard Settings") {
-                                    permissions.openKeyboardSettings()
-                                }
-                                .controlSize(.small)
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Label("Modifier Key", systemImage: "globe")
-            } footer: {
-                Text(globeIsSingleTap
-                     ? "Tap the Globe key to trigger a search."
-                     : "Quickly tap the chosen modifier key twice to trigger a search.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Section {
-                Toggle("Enable Global Hotkey", isOn: $settings.hotKeyEnabled)
-
-                if settings.hotKeyEnabled {
-                    HStack {
-                        Text("Search hotkey")
-                        Spacer()
-                        HotKeyRecorderView(keyCombo: $settings.hotKey)
-                            .frame(width: 160, height: 28)
-                    }
-                }
-            } header: {
-                Label("Global Hotkey", systemImage: "keyboard")
-            }
-
             Section("Keyboard Shortcuts") {
-                VStack(alignment: .leading, spacing: 8) {
-                    shortcutRow("Force Click", "Force-click on selected text")
-                    shortcutRow(doubleTapShortcutLabel, "Double-tap modifier")
-                    shortcutRow(settings.hotKey.displayString, "Global search hotkey")
-                    shortcutRow("⎋", "Close panel")
-                    shortcutRow("⌘1–9", "Switch provider tabs")
-                    shortcutRow("⌘↩", "Open in browser")
-                    shortcutRow("⌘C", "Copy URL")
-                    shortcutRow("⌘,", "Open preferences")
-                    shortcutRow("⌘⌫", "Clear search field")
-                    shortcutRow("↩", "Search with current text")
-                }
+                shortcutRow(hotkeyDisplayLabel, "Scry hotkey")
+                shortcutRow("Force Click", "Hold-click on selected text")
+                shortcutRow("\u{238B}", "Close panel")
+                shortcutRow("\u{2318}1\u{2013}9", "Switch provider tabs")
+                shortcutRow("\u{2318}\u{21A9}", "Open in browser")
+                shortcutRow("\u{2318}C", "Copy URL")
+                shortcutRow("\u{2318},", "Preferences")
+                shortcutRow("\u{2318}\u{232B}", "Clear search")
+                shortcutRow("\u{21A9}", "Search")
             }
         }
         .formStyle(.grouped)
         .frame(minWidth: 400)
     }
 
-    private var globeIsSingleTap: Bool {
-        settings.doubleTapModifier == .globe && !permissions.globeKeyConflict
+    // MARK: - Globe Warning
+
+    private var showGlobeWarning: Bool {
+        settings.doubleTapEnabled
+            && settings.doubleTapModifier == .globe
+            && permissions.globeKeyConflict
     }
 
-    private var doubleTapShortcutLabel: String {
-        let symbol: String = {
-            switch settings.doubleTapModifier {
-            case .globe: return "fn"
-            case .command: return "\u{2318}"
-            case .option: return "\u{2325}"
-            case .control: return "\u{2303}"
-            case .shift: return "\u{21E7}"
+    private var globeConflictBanner: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.caption)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Globe key has a system action assigned")
+                    .font(.caption).fontWeight(.medium)
+                // swiftlint:disable:next line_length
+                Text("Set \u{201C}Press Globe key\u{201D} to \u{201C}Do Nothing\u{201D} in **System Settings \u{2192} Keyboard** for single-tap. Double-tap works regardless.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("Open Keyboard Settings") {
+                    permissions.openKeyboardSettings()
+                }
+                .controlSize(.mini)
             }
-        }()
-        return globeIsSingleTap ? symbol : "\(symbol)\(symbol)"
+        }
+        .padding(8)
+        .background(.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 6))
     }
 
-    @ViewBuilder
-    private func statRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text(value)
-                .monospacedDigit()
+    // MARK: - Computed
+
+    private var hotkeyFooter: String {
+        if settings.doubleTapEnabled {
+            if settings.doubleTapModifier == .globe && !permissions.globeKeyConflict {
+                return "Tap the Globe key to trigger a search."
+            }
+            return "Tap the modifier key twice to trigger a search."
         }
+        if settings.hotKeyEnabled {
+            return "Press \(settings.hotKey.displayString) anywhere to trigger a search."
+        }
+        return "Record a shortcut to trigger Scry from anywhere."
+    }
+
+    private var hotkeyDisplayLabel: String {
+        if settings.doubleTapEnabled {
+            let sym = settings.doubleTapModifier.symbol
+            if settings.doubleTapModifier == .globe && !permissions.globeKeyConflict {
+                return sym
+            }
+            return "\(sym) \(sym)"
+        }
+        if settings.hotKeyEnabled {
+            return settings.hotKey.displayString
+        }
+        return "None"
     }
 
     @ViewBuilder
@@ -158,32 +150,79 @@ struct ShortcutsPreferencesView: View {
     }
 }
 
-/// A simple hotkey recorder view — click to start recording, press keys, click again to stop.
-struct HotKeyRecorderView: NSViewRepresentable {
-    @Binding var keyCombo: KeyCombo
+// MARK: - Unified Hotkey Recorder
 
-    func makeNSView(context: Context) -> HotKeyRecorderNSView {
-        let view = HotKeyRecorderNSView()
-        view.keyCombo = keyCombo
-        view.onKeyComboChanged = { newCombo in
-            keyCombo = newCombo
+/// A single recorder field like Raycast: click to record, then either:
+/// - Press modifier+key for a standard hotkey
+/// - Tap a modifier key twice for a double-tap trigger
+/// - Tap Globe once (detected as double-tap Globe with single-tap mode)
+/// Press Escape or Delete to clear. Click again to cancel.
+struct UnifiedHotKeyRecorderView: NSViewRepresentable {
+    @Binding var doubleTapEnabled: Bool
+    @Binding var doubleTapModifier: DoubleTapModifier
+    @Binding var hotKeyEnabled: Bool
+    @Binding var hotKey: KeyCombo
+
+    func makeNSView(context: Context) -> UnifiedHotKeyRecorderNSView {
+        let view = UnifiedHotKeyRecorderNSView()
+        view.onResult = { result in
+            switch result {
+            case let .keyCombo(combo):
+                doubleTapEnabled = false
+                hotKeyEnabled = true
+                hotKey = combo
+            case let .doubleTapModifier(modifier):
+                hotKeyEnabled = false
+                doubleTapEnabled = true
+                doubleTapModifier = modifier
+            case .cleared:
+                doubleTapEnabled = false
+                hotKeyEnabled = false
+            }
         }
         return view
     }
 
-    func updateNSView(_ nsView: HotKeyRecorderNSView, context: Context) {
-        nsView.keyCombo = keyCombo
+    func updateNSView(_ nsView: UnifiedHotKeyRecorderNSView, context: Context) {
+        nsView.displayText = currentDisplayText
         nsView.updateDisplay()
+    }
+
+    private var currentDisplayText: String {
+        if doubleTapEnabled {
+            let sym = doubleTapModifier.symbol
+            let globeSingle = doubleTapModifier == .globe
+                && !PermissionsService.shared.globeKeyConflict
+            return globeSingle ? sym : "\(sym) \(sym)"
+        }
+        if hotKeyEnabled {
+            return hotKey.displayString
+        }
+        return "Record Hotkey"
     }
 }
 
-final class HotKeyRecorderNSView: NSView {
-    var keyCombo: KeyCombo = .default
-    var onKeyComboChanged: ((KeyCombo) -> Void)?
+enum HotKeyRecorderResult {
+    case keyCombo(KeyCombo)
+    case doubleTapModifier(DoubleTapModifier)
+    case cleared
+}
+
+final class UnifiedHotKeyRecorderNSView: NSView {
+    var onResult: ((HotKeyRecorderResult) -> Void)?
+    var displayText: String = "Record Hotkey"
 
     private let label = NSTextField(labelWithString: "")
     private var isRecording = false
-    private var localMonitor: Any?
+    private var keyMonitor: Any?
+    private var flagsMonitor: Any?
+
+    /// Track modifier-only taps for double-tap detection.
+    private var lastModifierDown: (keyCode: UInt16, time: Date)?
+    private var lastModifierTap: (keyCode: UInt16, time: Date)?
+
+    private static let maxTapDuration: TimeInterval = 0.4
+    private static let maxDoubleTapInterval: TimeInterval = 0.5
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -195,18 +234,16 @@ final class HotKeyRecorderNSView: NSView {
         setup()
     }
 
-    deinit {
-        stopRecording()
-    }
+    deinit { stopRecording() }
 
     func updateDisplay() {
-        if isRecording {
-            label.stringValue = "Press keys..."
-            label.textColor = .controlAccentColor
-        } else {
-            label.stringValue = keyCombo.displayString
-            label.textColor = .labelColor
-        }
+        guard !isRecording else { return }
+        label.stringValue = displayText
+        label.textColor = hasHotkey ? .labelColor : .tertiaryLabelColor
+    }
+
+    private var hasHotkey: Bool {
+        displayText != "Record Hotkey"
     }
 
     private func setup() {
@@ -215,7 +252,7 @@ final class HotKeyRecorderNSView: NSView {
         layer?.borderWidth = 1
         layer?.borderColor = NSColor.separatorColor.cgColor
 
-        label.font = .systemFont(ofSize: 13, weight: .medium)
+        label.font = .systemFont(ofSize: 12, weight: .medium)
         label.alignment = .center
         label.translatesAutoresizingMaskIntoConstraints = false
         addSubview(label)
@@ -232,40 +269,139 @@ final class HotKeyRecorderNSView: NSView {
     }
 
     @objc private func clicked() {
-        if isRecording {
-            stopRecording()
-        } else {
-            startRecording()
-        }
+        if isRecording { stopRecording() } else { startRecording() }
     }
 
     private func startRecording() {
         isRecording = true
+        lastModifierDown = nil
+        lastModifierTap = nil
         layer?.borderColor = NSColor.controlAccentColor.cgColor
-        updateDisplay()
+        label.stringValue = "Type shortcut\u{2026}"
+        label.textColor = .controlAccentColor
 
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        // Listen for key combos (modifier + key)
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
-            // Need at least one modifier
+            // Escape = clear
+            if event.keyCode == 53 {
+                self.onResult?(.cleared)
+                self.stopRecording()
+                return nil
+            }
+
+            // Delete = clear
+            if event.keyCode == 51 {
+                self.onResult?(.cleared)
+                self.stopRecording()
+                return nil
+            }
+
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            // Need at least one modifier for a key combo
             guard !flags.isEmpty else { return event }
 
-            let newCombo = KeyCombo(keyCode: UInt32(event.keyCode), modifiers: flags)
-            self.keyCombo = newCombo
-            self.onKeyComboChanged?(newCombo)
+            let combo = KeyCombo(keyCode: UInt32(event.keyCode), modifiers: flags)
+            self.onResult?(.keyCombo(combo))
             self.stopRecording()
             return nil
         }
+
+        // Listen for modifier-only taps (double-tap detection)
+        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            self?.handleFlagsChanged(event)
+            return event
+        }
+    }
+
+    private func handleFlagsChanged(_ event: NSEvent) {
+        let keyCode = event.keyCode
+        guard let modifier = modifierForKeyCode(keyCode) else { return }
+
+        // Check if other modifiers are held (chord — ignore)
+        let allFlags: NSEvent.ModifierFlags = [.command, .option, .control, .shift, .function]
+        let thisFlag = modifier.modifierFlag
+        let others = allFlags.subtracting(thisFlag)
+        guard event.modifierFlags.isDisjoint(with: others) else {
+            lastModifierDown = nil
+            lastModifierTap = nil
+            return
+        }
+
+        let isDown = event.modifierFlags.contains(thisFlag)
+
+        if isDown {
+            // Modifier key down
+            lastModifierDown = (keyCode, Date())
+        } else if let down = lastModifierDown, down.keyCode == keyCode {
+            // Modifier key up — was it a quick tap?
+            let now = Date()
+            let duration = now.timeIntervalSince(down.time)
+            lastModifierDown = nil
+
+            guard duration < Self.maxTapDuration else {
+                lastModifierTap = nil
+                return
+            }
+
+            // Globe single-tap: if Globe is set to "Do Nothing", one tap is enough
+            if modifier == .globe && !PermissionsService.shared.globeKeyConflict {
+                onResult?(.doubleTapModifier(.globe))
+                stopRecording()
+                return
+            }
+
+            // Check for double-tap
+            if let prev = lastModifierTap, prev.keyCode == keyCode,
+               now.timeIntervalSince(prev.time) < Self.maxDoubleTapInterval {
+                lastModifierTap = nil
+                onResult?(.doubleTapModifier(modifier))
+                stopRecording()
+            } else {
+                lastModifierTap = (keyCode, now)
+                // Show the modifier symbol as feedback
+                label.stringValue = "\(modifier.symbol) \u{2026}"
+            }
+        }
+    }
+
+    private func modifierForKeyCode(_ keyCode: UInt16) -> DoubleTapModifier? {
+        for modifier in DoubleTapModifier.allCases {
+            if keyCode == modifier.keyCode || keyCode == modifier.rightKeyCode {
+                return modifier
+            }
+        }
+        return nil
     }
 
     private func stopRecording() {
         isRecording = false
+        lastModifierDown = nil
+        lastModifierTap = nil
         layer?.borderColor = NSColor.separatorColor.cgColor
-        if let monitor = localMonitor {
+        if let monitor = keyMonitor {
             NSEvent.removeMonitor(monitor)
-            localMonitor = nil
+            keyMonitor = nil
+        }
+        if let monitor = flagsMonitor {
+            NSEvent.removeMonitor(monitor)
+            flagsMonitor = nil
         }
         updateDisplay()
+    }
+}
+
+// MARK: - DoubleTapModifier Symbol
+
+extension DoubleTapModifier {
+    var symbol: String {
+        switch self {
+        case .globe: return "fn"
+        case .command: return "\u{2318}"
+        case .option: return "\u{2325}"
+        case .control: return "\u{2303}"
+        case .shift: return "\u{21E7}"
+        }
     }
 }
