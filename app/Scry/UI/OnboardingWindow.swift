@@ -14,9 +14,11 @@ struct OnboardingView: View {
                     .interpolation(.high)
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                Text("Welcome to Scry")
+                Text(settings.hasCompletedOnboarding ? "Scry" : "Welcome to Scry")
                     .font(.title.bold())
-                Text("Replace Look Up with instant search")
+                Text(settings.hasCompletedOnboarding
+                     ? "A permission needs your attention"
+                     : "Just a few steps to unlock instant search")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")

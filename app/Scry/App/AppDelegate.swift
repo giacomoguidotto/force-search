@@ -59,6 +59,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let debugLog = DebugLogStore.shared
     debugLog.log("Search", "performSearch called", level: .debug)
 
+    permissions.checkAll()
+    if !permissions.allPermissionsGranted {
+      debugLog.log("Search", "Missing permissions — showing onboarding", level: .warning)
+      onboardingController.show()
+      return
+    }
+
     let position = point ?? NSEvent.mouseLocation
 
     // Instant visual feedback before async work begins
