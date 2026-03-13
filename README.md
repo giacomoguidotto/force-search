@@ -26,7 +26,7 @@ Replace macOS's useless "Look Up" (Force Touch / Siri Knowledge) with instant Go
 ### 1. Build and run
 
 ```bash
-cd Scry
+cd app
 xcodegen generate   # regenerate .xcodeproj from project.yml
 open Scry.xcodeproj
 ```
@@ -83,12 +83,12 @@ Scry/
 The project uses [SwiftLint](https://github.com/realm/SwiftLint) for code style enforcement:
 
 ```bash
-cd Scry
+cd app
 swiftlint          # lint all source files
 swiftlint --fix    # auto-fix where possible
 ```
 
-Configuration is in `Scry/.swiftlint.yml`.
+Configuration is in `app/.swiftlint.yml`.
 
 ## License
 

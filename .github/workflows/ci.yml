@@ -26,11 +26,11 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        working-directory: Scry
+        working-directory: app
         run: xcodegen generate
 
       - name: Build
-        working-directory: Scry
+        working-directory: app
         run: |
           set -o pipefail
           xcodebuild \
@@ -42,7 +42,7 @@ jobs:
             | xcpretty
 
       - name: Run Tests
-        working-directory: Scry
+        working-directory: app
         run: |
           set -o pipefail
           xcodebuild \
@@ -64,7 +64,7 @@ jobs:
       - name: Check Swift formatting
         run: |
           if command -v swiftformat &> /dev/null; then
-            swiftformat --lint Scry/Scry/ || echo "SwiftFormat lint warnings found"
+            swiftformat --lint app/Scry/ || echo "SwiftFormat lint warnings found"
           else
             echo "SwiftFormat not installed, skipping lint"
           fi
@@ -86,7 +86,7 @@ jobs:
 
       - name: Bump version
         id: bump
-        run: bash Scripts/bump-version.sh
+        run: bash scripts/bump-version.sh
 
       - name: Push tag
         if: steps.bump.outputs.tag
@@ -115,11 +115,11 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode project
-        working-directory: Scry
+        working-directory: app
         run: xcodegen generate
 
       - name: Build Release
-        working-directory: Scry
+        working-directory: app
         run: |
           set -o pipefail
           xcodebuild \
@@ -133,5 +133,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scry.app
-          path: Scry/DerivedData/Build/Products/Release/Scry.app
+          path: app/DerivedData/Build/Products/Release/Scry.app
           retention-days: 14
