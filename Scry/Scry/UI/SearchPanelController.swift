@@ -108,7 +108,6 @@ final class SearchPanelController: NSObject {
         loadingBar.layer?.backgroundColor = ScryTheme.Colors.accent.cgColor
         loadingBar.isHidden = true
         loadingBar.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(loadingBar)
 
         contentContainer = NSView()
         contentContainer.translatesAutoresizingMaskIntoConstraints = false
@@ -146,15 +145,19 @@ final class SearchPanelController: NSObject {
             tabBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             tabBar.heightAnchor.constraint(equalToConstant: Constants.Panel.tabBarHeight),
 
+            contentContainer.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
+            contentContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            contentContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            contentContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+        ])
+
+        // Loading bar overlays the top of the content area (not in layout flow)
+        contentView.addSubview(loadingBar, positioned: .above, relativeTo: contentContainer)
+        NSLayoutConstraint.activate([
             loadingBar.topAnchor.constraint(equalTo: tabBar.bottomAnchor),
             loadingBar.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             loadingBar.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             loadingBar.heightAnchor.constraint(equalToConstant: AnimationConstants.Loading.barHeight),
-
-            contentContainer.topAnchor.constraint(equalTo: loadingBar.bottomAnchor),
-            contentContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            contentContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            contentContainer.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
 
         // Listen for panel events

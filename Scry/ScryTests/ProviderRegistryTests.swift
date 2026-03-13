@@ -49,9 +49,9 @@ final class ProviderRegistryTests: XCTestCase {
         XCTAssertFalse(google.supportsNativeRendering)
     }
 
-    func testGoogleHasInjectedCSS() {
+    func testGoogleHasInjectedJS() {
         let google = GoogleSearchProvider()
-        XCTAssertNotNil(google.injectedCSS)
+        XCTAssertNotNil(google.injectedJS)
     }
 
     func testEnabledProvidersRespectsSettings() {
