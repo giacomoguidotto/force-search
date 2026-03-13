@@ -42,8 +42,21 @@ struct OnboardingView: View {
                     action: { permissions.openTrackpadSettings() }
                 )
 
+                if showGlobeStep {
+                    permissionStep(
+                        number: 2,
+                        title: "Globe Key",
+                        // swiftlint:disable:next line_length
+                        description: "The Globe key triggers Emoji or Input Source by default. Set \u{201C}Press Globe key\u{201D} to \u{201C}Do Nothing\u{201D} in System Settings \u{2192} Keyboard so Scry can use it.",
+                        granted: !permissions.globeKeyConflict,
+                        buttonLabel: "Open Keyboard Settings",
+                        resolvedLabel: "Ready",
+                        action: { permissions.openKeyboardSettings() }
+                    )
+                }
+
                 permissionStep(
-                    number: 2,
+                    number: showGlobeStep ? 3 : 2,
                     title: "Accessibility Access",
                     description: "Required to read selected text from any application.",
                     granted: permissions.accessibilityGranted,
@@ -51,7 +64,7 @@ struct OnboardingView: View {
                 )
 
                 permissionStep(
-                    number: 3,
+                    number: showGlobeStep ? 4 : 3,
                     title: "Input Monitoring",
                     description: "Required to detect force-click gestures on the trackpad.",
                     granted: permissions.inputMonitoringGranted,
@@ -93,6 +106,11 @@ struct OnboardingView: View {
         .onDisappear {
             permissions.stopPolling()
         }
+    }
+
+    /// Show the Globe key step only when Globe is the active modifier and the system action conflicts.
+    private var showGlobeStep: Bool {
+        settings.doubleTapEnabled && settings.doubleTapModifier == .globe
     }
 
     @ViewBuilder
