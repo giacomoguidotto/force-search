@@ -20,6 +20,19 @@ final class PermissionsService: ObservableObject {
 
     private init() {
         checkAll()
+        // Listen for accessibility TCC changes (no polling needed)
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(accessibilityChanged),
+            name: NSNotification.Name("com.apple.accessibility.api"),
+            object: nil
+        )
+    }
+
+    @objc private func accessibilityChanged() {
+        DispatchQueue.main.async { [weak self] in
+            self?.accessibilityGranted = self?.checkAccessibility() ?? false
+        }
     }
 
     func checkAll() {
@@ -36,12 +49,11 @@ final class PermissionsService: ObservableObject {
         checkScreenRecordingAsync()
     }
 
-    /// Prompts for Accessibility access and opens the Settings pane.
+    /// Prompts for Accessibility access via the system dialog.
+    /// Does NOT open System Settings — the system dialog has its own "Open System Settings" button.
     func requestAccessibility() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
-        // Also open the pane directly so the user can find & toggle the app
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }
 
     /// Opens System Settings → Trackpad so the user can change Look Up gesture.
@@ -82,11 +94,11 @@ final class PermissionsService: ObservableObject {
 
     // MARK: - Private
 
-    /// AXIsProcessTrusted() caches its result for the process lifetime.
-    /// Instead, probe the accessibility API directly: query the focused
-    /// application's AXUIElement for its role. A successful response means
-    /// we have accessibility permission; an error means it was revoked.
+    /// Checks accessibility permission. Probes the AX API directly for
+    /// real-time detection, but requires AXIsProcessTrusted() to also be
+    /// true (filters out Xcode-inherited permissions).
     private func checkAccessibility() -> Bool {
+        guard AXIsProcessTrusted() else { return false }
         let systemWide = AXUIElementCreateSystemWide()
         var value: AnyObject?
         let result = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &value)
