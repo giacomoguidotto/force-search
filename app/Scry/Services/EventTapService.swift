@@ -6,6 +6,7 @@ private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Scry", c
 
 final class EventTapService {
     let forceClickPublisher = PassthroughSubject<NSPoint, Never>()
+    let mouseDownPublisher = PassthroughSubject<Void, Never>()
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -206,6 +207,9 @@ final class EventTapService {
             _driftExceeded = false
             _mouseDownLocation = location
             os_unfair_lock_unlock(&stateLock)
+            DispatchQueue.main.async { [weak self] in
+                self?.mouseDownPublisher.send()
+            }
             return
         }
 

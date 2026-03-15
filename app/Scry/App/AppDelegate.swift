@@ -102,6 +102,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func setupServices() {
     // Event tap for force touch
     eventTapService = EventTapService()
+    eventTapService?.mouseDownPublisher
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] in
+        self?.textExtractorService?.snapshotSelection()
+      }
+      .store(in: &cancellables)
     eventTapService?.forceClickPublisher
       .receive(on: DispatchQueue.main)
       .sink { [weak self] point in
