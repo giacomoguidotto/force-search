@@ -9,15 +9,15 @@ final class RippleOverlay {
 
     /// Shows a ripple centered on `point` (in NSScreen coordinates).
     /// The overlay respects the user's "show animations" preference.
-    static func show(at point: NSPoint) {
+    static func show(at point: NSPoint, color: NSColor = ScryTheme.Colors.accent) {
         guard AppSettings.shared.showAnimations else { return }
         let overlay = RippleOverlay()
-        overlay.present(at: point)
+        overlay.present(at: point, color: color)
     }
 
     // MARK: - Private
 
-    private func present(at point: NSPoint) {
+    private func present(at point: NSPoint, color: NSColor) {
         let maxRadius = AnimationConstants.Ripple.maxRadius
         let side = maxRadius * 2
         let origin = NSPoint(x: point.x - maxRadius, y: point.y - maxRadius)
@@ -53,7 +53,7 @@ final class RippleOverlay {
             transform: nil
         )
         ring.fillColor = nil
-        ring.strokeColor = ScryTheme.Colors.accent.cgColor
+        ring.strokeColor = color.cgColor
         ring.lineWidth = AnimationConstants.Ripple.lineWidth
         ring.opacity = 0
         hostView.layer?.addSublayer(ring)
