@@ -14,12 +14,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var doubleTapService: DoubleTapService?
   private var searchPanelController: SearchPanelController?
   private var cancellables = Set<AnyCancellable>()
+  private var lastPermissionToast: Date = .distantPast
+  private let permissionToastCooldown: TimeInterval = 60
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     AppDelegate.shared = self
 
-    // Check permissions on launch
-    permissions.checkAll()
+    // Request accessibility once on boot (shows system prompt if not granted)
+    permissions.requestAccessibility()
 
     // Show onboarding if first run
     if !settings.hasCompletedOnboarding {
@@ -61,14 +63,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let debugLog = DebugLogStore.shared
     debugLog.log("Search", "performSearch called", level: .debug)
 
+    let position = point ?? NSEvent.mouseLocation
+
+    // Check accessibility permission
     permissions.checkAll()
-    if !permissions.allPermissionsGranted {
-      debugLog.log("Search", "Missing permissions — showing onboarding", level: .warning)
-      onboardingController.show()
+    if !permissions.accessibilityGranted {
+      debugLog.log("Search", "Accessibility not granted", level: .warning)
+      RippleOverlay.show(at: position, color: ScryTheme.Colors.error)
+      let now = Date()
+      if now.timeIntervalSince(lastPermissionToast) >= permissionToastCooldown {
+        lastPermissionToast = now
+        ToastOverlay.show("Accessibility permission required", at: position)
+      }
       return
     }
-
-    let position = point ?? NSEvent.mouseLocation
 
     // Instant visual feedback before async work begins
     RippleOverlay.show(at: position)
@@ -76,13 +84,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     Task { @MainActor in
       let query = await textExtractorService?.extractText(at: position)
 
-      guard let query = query, !query.isEmpty else {
-        debugLog.log("Search", "No text extracted — aborting", level: .warning)
-        return
+      let effectiveQuery: String
+      if let query = query, !query.isEmpty {
+        effectiveQuery = String(query.prefix(settings.maxQueryLength))
+        debugLog.log("Search", "Extracted text: \"\(effectiveQuery)\"", level: .info)
+      } else {
+        debugLog.log("Search", "No text extracted — showing panel with hint", level: .warning)
+        effectiveQuery = ""
       }
-
-      let truncatedQuery = String(query.prefix(settings.maxQueryLength))
-      debugLog.log("Search", "Extracted text: \"\(truncatedQuery)\"", level: .info)
 
       // Pass screenshot to AI provider before showing panel
       if let screenshot = textExtractorService?.lastScreenshot {
@@ -93,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         searchPanelController = SearchPanelController()
       }
 
-      searchPanelController?.show(query: truncatedQuery, at: position)
+      searchPanelController?.show(query: effectiveQuery, at: position)
     }
   }
 
@@ -207,20 +216,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       .store(in: &cancellables)
 
-    // React to permission changes
+    // React to permission changes (only true→false or false→true transitions)
     permissions.$accessibilityGranted
       .removeDuplicates()
       .dropFirst()
-      .sink { [weak self] allGranted in
+      .sink { [weak self] granted in
         guard let self = self else { return }
-        if allGranted {
-          // Retry event tap when permissions become granted
-          if self.settings.forceClickEnabled {
-            self.eventTapService?.restart()
-          }
-        } else {
-          // Permissions revoked — show onboarding so user can re-grant
-          self.onboardingController.show()
+        if granted, self.settings.forceClickEnabled {
+          self.eventTapService?.restart()
         }
       }
       .store(in: &cancellables)

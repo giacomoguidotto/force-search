@@ -66,7 +66,13 @@ final class TextExtractorService {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // Fallback: Screenshot + OCR
+        // Fallback: Screenshot + OCR (lazily request screen recording permission)
+        if !CGPreflightScreenCaptureAccess() {
+            CGRequestScreenCaptureAccess()
+            debugLog.log("TextExtractor", "Screen recording not granted — prompting", level: .info)
+            return nil
+        }
+
         captureScreenshot(at: cursorPoint)
         if let screenshot = lastScreenshot, let ocrResult = await ocrService.recognizeText(in: screenshot) {
             let text = ocrResult.lineNearestCenter ?? ocrResult.fullText

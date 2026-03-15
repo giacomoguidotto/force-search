@@ -59,8 +59,12 @@ final class SearchPanelController: NSObject {
         // Show with animation
         showWithAnimation()
 
-        // Load search
-        performSearch()
+        // Load search or show hint for empty query
+        if query.isEmpty {
+            showPlaceholder("Grant Screen Recording to enable text detection under cursor.")
+        } else {
+            performSearch()
+        }
 
         // Monitor for clicks outside
         startClickOutsideMonitor()
