@@ -26,38 +26,31 @@ final class LLMService {
         describe what you see. Be concise and helpful. Respond in 2-4 sentences.
         """
 
-    /// Starts a streaming LLM analysis of the given screenshot.
-    func analyzeImage(_ image: CGImage, query: String? = nil) -> LLMStreamingResponse {
+    /// Starts a streaming LLM analysis, optionally including a screenshot.
+    func analyzeImage(_ image: CGImage?, query: String? = nil) -> LLMStreamingResponse {
         let response = LLMStreamingResponse()
         let settings = AppSettings.shared
 
-        guard !settings.aiAPIKey.isEmpty else {
+        let providerType = settings.aiProviderType
+
+        if providerType != .ollama, settings.aiAPIKey.isEmpty {
             response.error = "No API key configured. Open Preferences → AI to set one."
             response.isComplete = true
             return response
         }
 
-        guard let imageData = jpegBase64(from: image) else {
-            response.error = "Failed to encode screenshot."
-            response.isComplete = true
-            return response
+        // Encode image when available; skip for text-only Ollama models or nil image
+        let imageData: String?
+        if let image = image {
+            imageData = jpegBase64(from: image)
+        } else {
+            imageData = nil
         }
 
-        let providerType = settings.aiProviderType
         let model = settings.aiModel
         let apiKey = settings.aiAPIKey
 
-        let endpoint: String
-        switch providerType {
-        case .claude:
-            endpoint = Constants.AIConfig.claudeEndpoint
-        case .openai:
-            endpoint = Constants.AIConfig.openAIEndpoint
-        case .custom:
-            endpoint = settings.aiCustomEndpoint
-        }
-
-        guard let url = URL(string: endpoint) else {
+        guard let url = URL(string: endpointURL(for: providerType, settings: settings)) else {
             response.error = "Invalid endpoint URL."
             response.isComplete = true
             return response
@@ -116,6 +109,17 @@ final class LLMService {
         return response
     }
 
+    // MARK: - Endpoint Resolution
+
+    private func endpointURL(for provider: AIProviderType, settings: AppSettings) -> String {
+        switch provider {
+        case .claude: return Constants.AIConfig.claudeEndpoint
+        case .openai: return Constants.AIConfig.openAIEndpoint
+        case .ollama: return Constants.AIConfig.ollamaEndpoint
+        case .custom: return settings.aiCustomEndpoint
+        }
+    }
+
     // MARK: - Request Building
 
     private struct RequestConfig {
@@ -123,7 +127,7 @@ final class LLMService {
         let providerType: AIProviderType
         let model: String
         let apiKey: String
-        let imageBase64: String
+        let imageBase64: String?
         let userPrompt: String
     }
 
@@ -132,13 +136,21 @@ final class LLMService {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body: Data
-
+        // Set auth headers
         switch config.providerType {
         case .claude:
             request.setValue(config.apiKey, forHTTPHeaderField: "x-api-key")
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        case .ollama:
+            break // No auth header for local Ollama
+        case .openai, .custom:
+            request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        }
 
+        // Build request body
+        let body: Data
+        switch config.providerType {
+        case .claude:
             let payload: [String: Any] = [
                 "model": config.model,
                 "max_tokens": Constants.AIConfig.maxTokens,
@@ -153,7 +165,7 @@ final class LLMService {
                                 "source": [
                                     "type": "base64",
                                     "media_type": "image/jpeg",
-                                    "data": config.imageBase64,
+                                    "data": config.imageBase64 ?? "",
                                 ],
                             ],
                             [
@@ -166,8 +178,24 @@ final class LLMService {
             ]
             body = try JSONSerialization.data(withJSONObject: payload)
 
-        case .openai, .custom:
-            request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        case .openai, .ollama, .custom:
+            var userContent: Any
+            if let imageBase64 = config.imageBase64 {
+                userContent = [
+                    [
+                        "type": "image_url",
+                        "image_url": [
+                            "url": "data:image/jpeg;base64,\(imageBase64)",
+                        ],
+                    ],
+                    [
+                        "type": "text",
+                        "text": config.userPrompt,
+                    ],
+                ] as [[String: Any]]
+            } else {
+                userContent = config.userPrompt
+            }
 
             let payload: [String: Any] = [
                 "model": config.model,
@@ -180,18 +208,7 @@ final class LLMService {
                     ],
                     [
                         "role": "user",
-                        "content": [
-                            [
-                                "type": "image_url",
-                                "image_url": [
-                                    "url": "data:image/jpeg;base64,\(config.imageBase64)",
-                                ],
-                            ],
-                            [
-                                "type": "text",
-                                "text": config.userPrompt,
-                            ],
-                        ],
+                        "content": userContent,
                     ],
                 ],
             ]
@@ -222,8 +239,8 @@ final class LLMService {
                let text = delta["text"] as? String {
                 return text
             }
-        case .openai, .custom:
-            // OpenAI: {"choices":[{"delta":{"content":"..."}}]}
+        case .openai, .ollama, .custom:
+            // OpenAI-compatible: {"choices":[{"delta":{"content":"..."}}]}
             if let choices = json["choices"] as? [[String: Any]],
                let delta = choices.first?["delta"] as? [String: Any],
                let content = delta["content"] as? String {

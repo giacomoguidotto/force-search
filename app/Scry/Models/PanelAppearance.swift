@@ -40,12 +40,14 @@ enum LinkTarget: String, CaseIterable, Codable {
 enum AIProviderType: String, CaseIterable, Codable {
     case claude
     case openai
+    case ollama
     case custom
 
     var displayName: String {
         switch self {
         case .claude: return "Claude (Anthropic)"
         case .openai: return "OpenAI"
+        case .ollama: return "Ollama (Local)"
         case .custom: return "Custom (OpenAI-compatible)"
         }
     }
@@ -54,6 +56,7 @@ enum AIProviderType: String, CaseIterable, Codable {
         switch self {
         case .claude: return Constants.AIConfig.defaultClaudeModel
         case .openai: return Constants.AIConfig.defaultOpenAIModel
+        case .ollama: return Constants.AIConfig.defaultOllamaModel
         case .custom: return Constants.AIConfig.defaultOpenAIModel
         }
     }
@@ -62,6 +65,7 @@ enum AIProviderType: String, CaseIterable, Codable {
         switch self {
         case .claude: return Constants.AIConfig.claudeEndpoint
         case .openai: return Constants.AIConfig.openAIEndpoint
+        case .ollama: return Constants.AIConfig.ollamaEndpoint
         case .custom: return ""
         }
     }

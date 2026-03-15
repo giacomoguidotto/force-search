@@ -15,12 +15,14 @@ final class AIProviderTests: XCTestCase {
     func testAIProviderTypeDefaultModels() {
         XCTAssertEqual(AIProviderType.claude.defaultModel, Constants.AIConfig.defaultClaudeModel)
         XCTAssertEqual(AIProviderType.openai.defaultModel, Constants.AIConfig.defaultOpenAIModel)
+        XCTAssertEqual(AIProviderType.ollama.defaultModel, Constants.AIConfig.defaultOllamaModel)
         XCTAssertFalse(AIProviderType.custom.defaultModel.isEmpty)
     }
 
     func testAIProviderTypeDefaultEndpoints() {
         XCTAssertTrue(AIProviderType.claude.defaultEndpoint.contains("anthropic.com"))
         XCTAssertTrue(AIProviderType.openai.defaultEndpoint.contains("openai.com"))
+        XCTAssertTrue(AIProviderType.ollama.defaultEndpoint.contains("localhost"))
         XCTAssertTrue(AIProviderType.custom.defaultEndpoint.isEmpty)
     }
 
@@ -67,8 +69,11 @@ final class AIProviderTests: XCTestCase {
     func testAIConstants() {
         XCTAssertFalse(Constants.AIConfig.defaultClaudeModel.isEmpty)
         XCTAssertFalse(Constants.AIConfig.defaultOpenAIModel.isEmpty)
+        XCTAssertFalse(Constants.AIConfig.defaultOllamaModel.isEmpty)
         XCTAssertTrue(Constants.AIConfig.claudeEndpoint.contains("anthropic.com"))
         XCTAssertTrue(Constants.AIConfig.openAIEndpoint.contains("openai.com"))
+        XCTAssertTrue(Constants.AIConfig.ollamaEndpoint.contains("localhost"))
+        XCTAssertTrue(Constants.AIConfig.ollamaBaseURL.contains("localhost"))
         XCTAssertGreaterThan(Constants.AIConfig.maxTokens, 0)
     }
 }

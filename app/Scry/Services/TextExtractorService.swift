@@ -10,6 +10,16 @@ final class TextExtractorService {
     /// The last screenshot captured during extraction, for use by the AI provider.
     private(set) var lastScreenshot: CGImage?
 
+    /// Whether the current AI configuration needs a screenshot.
+    private var aiNeedsScreenshot: Bool {
+        let settings = AppSettings.shared
+        guard settings.aiEnabled else { return false }
+        if settings.aiProviderType == .ollama {
+            return OllamaService.shared.modelSupportsVision(settings.aiModel)
+        }
+        return true
+    }
+
     /// Async extraction pipeline: AX selected text → AX word under cursor → Screenshot + OCR.
     func extractText(at point: NSPoint? = nil) async -> String? {
         let cursorPoint = point ?? NSEvent.mouseLocation
@@ -17,8 +27,8 @@ final class TextExtractorService {
         // Try AX selected text first (works when user pre-selected text)
         if let text = extractViaAccessibility(), !text.isEmpty {
             debugLog.log("TextExtractor", "Got text via Accessibility", level: .debug)
-            // Still capture screenshot for AI if enabled
-            if AppSettings.shared.aiEnabled {
+            // Still capture screenshot for AI if enabled and model supports vision
+            if aiNeedsScreenshot {
                 captureScreenshot(at: cursorPoint)
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -27,7 +37,7 @@ final class TextExtractorService {
         // Try to get the word under cursor via AX element at position
         if let text = extractWordUnderCursor() {
             debugLog.log("TextExtractor", "Got text via word-under-cursor", level: .debug)
-            if AppSettings.shared.aiEnabled {
+            if aiNeedsScreenshot {
                 captureScreenshot(at: cursorPoint)
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)

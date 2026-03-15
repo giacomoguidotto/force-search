@@ -47,7 +47,8 @@ final class ProviderRegistry {
         }
 
         // Append AI provider if enabled and configured
-        if settings.aiEnabled, !settings.aiAPIKey.isEmpty {
+        let ollamaOrKeyed = settings.aiProviderType == .ollama || !settings.aiAPIKey.isEmpty
+        if settings.aiEnabled, ollamaOrKeyed {
             result.append(aiProvider)
         }
 
@@ -84,6 +85,7 @@ final class ProviderRegistry {
             .store(in: &cancellables)
 
         settings.$aiEnabled
+            .merge(with: settings.$aiProviderType.map { _ in false })
             .sink { [weak self] _ in
                 self?.cachedEnabledProviders = nil
             }

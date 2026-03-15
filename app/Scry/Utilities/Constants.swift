@@ -31,10 +31,13 @@ enum Constants {
     }
 
     enum AIConfig {
-        static let defaultClaudeModel = "claude-sonnet-4-20250514"
+        static let defaultClaudeModel = "claude-sonnet-4-6"
         static let defaultOpenAIModel = "gpt-4o"
+        static let defaultOllamaModel = "llama3.2"
         static let claudeEndpoint = "https://api.anthropic.com/v1/messages"
         static let openAIEndpoint = "https://api.openai.com/v1/chat/completions"
+        static let ollamaEndpoint = "http://localhost:11434/v1/chat/completions"
+        static let ollamaBaseURL = "http://localhost:11434"
         static let maxTokens = 1024
     }
 

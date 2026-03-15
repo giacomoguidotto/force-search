@@ -251,12 +251,14 @@ final class SearchPanelController: NSObject {
         loadingBar.isHidden = false
         startLoadingAnimation()
 
+        let response = provider.startAnalysis(query: currentQuery)
+        aiResultView.observe(response: response)
+
         Task {
-            _ = try? await provider.search(query: currentQuery)
+            while !response.isComplete {
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
             await MainActor.run {
-                if let response = provider.currentResponse {
-                    aiResultView.observe(response: response)
-                }
                 loadingBar.isHidden = true
                 stopLoadingAnimation()
             }

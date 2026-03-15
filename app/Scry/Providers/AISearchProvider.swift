@@ -15,16 +15,16 @@ final class AISearchProvider: SearchProvider {
 
     private let llmService = LLMService()
 
+    /// Starts analysis and returns the streaming response immediately (no waiting).
+    func startAnalysis(query: String) -> LLMStreamingResponse {
+        let userQuery = query.isEmpty ? nil : query
+        let response = llmService.analyzeImage(screenshotImage, query: userQuery)
+        currentResponse = response
+        return response
+    }
+
     func search(query: String) async throws -> [SearchResult] {
-        guard let image = screenshotImage else {
-            return []
-        }
-
-        let response = llmService.analyzeImage(image, query: query.isEmpty ? nil : query)
-
-        await MainActor.run {
-            self.currentResponse = response
-        }
+        let response = startAnalysis(query: query)
 
         // Wait for the stream to complete
         while !response.isComplete {
