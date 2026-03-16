@@ -55,6 +55,9 @@ jobs:
       - name: Run Tests
         working-directory: app
         run: |
+          defaults write com.giacomo.Scry hasCompletedOnboarding -bool true
+          defaults write com.giacomo.Scry forceClickEnabled -bool false
+          defaults write com.giacomo.Scry doubleTapEnabled -bool false
           set -o pipefail
           xcodebuild \
             -project Scry.xcodeproj \

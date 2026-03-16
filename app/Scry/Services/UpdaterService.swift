@@ -18,8 +18,13 @@ final class UpdaterService: ObservableObject {
     }
 
     private init() {
+        // Don't start the updater automatically in test environments
+        // (SPUStandardUpdaterController with startingUpdater:true can hang in headless CI)
+        let hasFeedURL = Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
+        let shouldStart = hasFeedURL != nil && !hasFeedURL!.isEmpty
+
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: shouldStart,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
