@@ -1,0 +1,118 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+/* Dark Mode (default) — Obsidian crystal */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.07 0.01 200);
+  --foreground: oklch(0.93 0.005 200);
+  --card: oklch(0.11 0.01 200);
+  --card-foreground: oklch(0.93 0.005 200);
+  --primary: oklch(0.82 0.14 170);
+  --primary-foreground: oklch(0.12 0.02 200);
+  --accent: oklch(0.65 0.18 290);
+  --accent-foreground: oklch(0.93 0.005 200);
+  --muted: oklch(0.18 0.01 200);
+  --muted-foreground: oklch(0.55 0.005 200);
+  --border: oklch(1 0 0 / 8%);
+  --ring: oklch(0.82 0.14 170);
+}
+
+/* Light Mode */
+.light {
+  --background: oklch(0.97 0.005 200);
+  --foreground: oklch(0.12 0.02 200);
+  --card: oklch(1 0 0 / 80%);
+  --card-foreground: oklch(0.12 0.02 200);
+  --primary: oklch(0.55 0.14 170);
+  --primary-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.5 0.15 290);
+  --accent-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.94 0.005 200);
+  --muted-foreground: oklch(0.45 0.01 200);
+  --border: oklch(0.12 0.02 200 / 10%);
+  --ring: oklch(0.55 0.14 170);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 4vw, 3rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+  h3 {
+    font-family: var(--font-display);
+    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}
+
+@layer utilities {
+  .glass {
+    -webkit-backdrop-filter: blur(12px) saturate(1.5);
+    backdrop-filter: blur(12px) saturate(1.5);
+  }
+  .glass-strong {
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(24px) saturate(1.8);
+  }
+  .glow-primary {
+    box-shadow: 0 0 20px -4px oklch(from var(--primary) l c h / 30%);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: oklch(0.1 0 0);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0 0);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.4 0 0);
+  }
+}
