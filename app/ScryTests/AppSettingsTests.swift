@@ -5,9 +5,9 @@ final class AppSettingsTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        // Reset relevant UserDefaults keys before each test
+        // Reset relevant UserDefaults keys and singleton properties before each test
         let defaults = UserDefaults.standard
-        for key in [
+        let keys = [
             Constants.UserDefaultsKeys.forceClickEnabled,
             Constants.UserDefaultsKeys.doubleTapEnabled,
             Constants.UserDefaultsKeys.doubleTapModifier,
@@ -20,9 +20,23 @@ final class AppSettingsTests: XCTestCase {
             Constants.UserDefaultsKeys.defaultProvider,
             Constants.UserDefaultsKeys.enabledProviders,
             Constants.UserDefaultsKeys.providerOrder,
-        ] {
-            defaults.removeObject(forKey: key)
-        }
+        ]
+        for key in keys { defaults.removeObject(forKey: key) }
+
+        // Reset singleton properties to code defaults (CI may have overridden them)
+        let settings = AppSettings.shared
+        settings.forceClickEnabled = true
+        settings.doubleTapEnabled = true
+        settings.doubleTapModifier = .globe
+        settings.hotKeyEnabled = false
+        settings.pressureSensitivity = Constants.Defaults.pressureSensitivity
+        settings.panelWidth = Constants.Panel.defaultWidth
+        settings.panelHeight = Constants.Panel.defaultHeight
+        settings.showAnimations = true
+        settings.theme = .system
+        settings.defaultProvider = "google"
+        settings.enabledProviders = Constants.Defaults.enabledProviders
+        settings.providerOrder = Constants.Defaults.enabledProviders
     }
 
     func testDefaultValues() {

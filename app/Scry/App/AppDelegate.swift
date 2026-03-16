@@ -20,6 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     AppDelegate.shared = self
 
+    // Hosted test bundle: the app is launched as test host, skip all
+    // services to avoid blocking (CGEvent taps, Sparkle, windows, etc.)
+    guard ProcessInfo.processInfo.environment["SCRY_TESTING"] != "1" else { return }
+
     // Show onboarding if first run (user grants permissions from there)
     if !settings.hasCompletedOnboarding {
       onboardingController.show()

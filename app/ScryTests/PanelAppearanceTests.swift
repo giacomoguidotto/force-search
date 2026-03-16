@@ -4,6 +4,15 @@ import AppKit
 
 final class PanelAppearanceTests: XCTestCase {
 
+    override func setUp() {
+        super.setUp()
+        let settings = AppSettings.shared
+        settings.forceClickEnabled = true
+        settings.doubleTapEnabled = true
+        settings.doubleTapModifier = .globe
+        settings.hotKeyEnabled = false
+    }
+
     func testThemeAppearanceNames() {
         XCTAssertNil(Theme.system.appearanceName)
         XCTAssertEqual(Theme.light.appearanceName, .aqua)
