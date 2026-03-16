@@ -20,10 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     AppDelegate.shared = self
 
-    // Request accessibility once on boot (shows system prompt if not granted)
-    permissions.requestAccessibility()
-
-    // Show onboarding if first run
+    // Show onboarding if first run (user grants permissions from there)
     if !settings.hasCompletedOnboarding {
       onboardingController.show()
     }
