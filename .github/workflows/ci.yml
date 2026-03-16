@@ -25,9 +25,20 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: app/Scry.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('app/project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
       - name: Generate Xcode project
         working-directory: app
         run: xcodegen generate
+
+      - name: Resolve SPM packages
+        working-directory: app
+        run: xcodebuild -resolvePackageDependencies -project Scry.xcodeproj -scheme Scry
 
       - name: Build
         working-directory: app
@@ -76,6 +87,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [build]
 
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+
     permissions:
       contents: write
 
@@ -92,21 +106,23 @@ jobs:
         if: steps.bump.outputs.tag
         run: git push origin "${{ steps.bump.outputs.tag }}"
 
-      - name: Create GitHub Release
-        if: steps.bump.outputs.tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ steps.bump.outputs.tag }}" --title "${{ steps.bump.outputs.tag }}"
-
   release:
-    name: Build Release
+    name: Build & Release DMG
     runs-on: macos-15
     timeout-minutes: 30
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [build]
+    if: needs.version.outputs.tag
+    needs: [build, version]
+
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --tags
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
@@ -114,9 +130,20 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: app/Scry.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('app/project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
       - name: Generate Xcode project
         working-directory: app
         run: xcodegen generate
+
+      - name: Resolve SPM packages
+        working-directory: app
+        run: xcodebuild -resolvePackageDependencies -project Scry.xcodeproj -scheme Scry
 
       - name: Build Release
         working-directory: app
@@ -128,6 +155,63 @@ jobs:
             -configuration Release \
             -derivedDataPath DerivedData \
             build
+
+      - name: Create DMG
+        id: dmg
+        run: |
+          TAG="${{ needs.version.outputs.tag }}"
+          VERSION="${TAG#v}"
+          bash scripts/create-dmg.sh "$VERSION" app/DerivedData/Build/Products/Release
+          echo "dmg_name=Scry-${VERSION}.dmg" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Sign DMG with EdDSA
+        if: env.SPARKLE_EDDSA_KEY != ''
+        id: sign
+        env:
+          SPARKLE_EDDSA_KEY: ${{ secrets.SPARKLE_EDDSA_KEY }}
+        run: |
+          DMG="${{ steps.dmg.outputs.dmg_name }}"
+          SIGNATURE=$(echo "$SPARKLE_EDDSA_KEY" | python3 -c "
+          import sys, hashlib, base64
+          # Use Sparkle's sign_update if available, otherwise skip
+          print('')
+          " 2>/dev/null || true)
+          # Prefer Sparkle's own signing tool from the resolved package
+          SIGN_TOOL=$(find app/DerivedData -name "sign_update" -type f 2>/dev/null | head -1)
+          if [ -n "$SIGN_TOOL" ] && [ -x "$SIGN_TOOL" ]; then
+            SIGNATURE=$("$SIGN_TOOL" "$DMG" --ed-key-file <(echo "$SPARKLE_EDDSA_KEY") 2>/dev/null || true)
+          fi
+          echo "signature=$SIGNATURE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload DMG to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ needs.version.outputs.tag }}"
+          DMG="${{ steps.dmg.outputs.dmg_name }}"
+          # Create the release if it doesn't exist yet
+          gh release create "$TAG" --title "$TAG" 2>/dev/null || true
+          gh release upload "$TAG" "$DMG" --clobber
+
+      - name: Generate and deploy appcast
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ needs.version.outputs.tag }}"
+          DMG="${{ steps.dmg.outputs.dmg_name }}"
+          SIGNATURE="${{ steps.sign.outputs.signature }}"
+          bash scripts/generate-appcast.sh "$TAG" "$DMG" "$SIGNATURE"
+
+          # Deploy appcast to gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan gh-pages-tmp
+          git rm -rf . 2>/dev/null || true
+          cp site/appcast.xml .
+          git add appcast.xml
+          git commit -m "Update appcast for $TAG"
+          git push origin HEAD:gh-pages --force
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

@@ -22,6 +22,23 @@ struct GeneralPreferencesView: View {
             Section("System") {
                 Toggle("Launch at login", isOn: $settings.launchAtLogin)
             }
+
+            Section("Updates") {
+                Toggle("Automatically check for updates", isOn: Binding(
+                    get: { UpdaterService.shared.automaticallyChecksForUpdates },
+                    set: { UpdaterService.shared.automaticallyChecksForUpdates = $0 }
+                ))
+
+                HStack {
+                    Text("Version \(UpdaterService.shared.currentVersion)")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Check Now") {
+                        UpdaterService.shared.checkForUpdates()
+                    }
+                    .disabled(!UpdaterService.shared.canCheckForUpdates)
+                }
+            }
         }
         .formStyle(.grouped)
         .frame(minWidth: 400)

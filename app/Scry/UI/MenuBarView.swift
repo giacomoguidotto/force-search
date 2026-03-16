@@ -24,6 +24,15 @@ struct MenuBarView: View {
         .padding(.vertical, 6)
       }
 
+      Button {
+        UpdaterService.shared.checkForUpdates()
+      } label: {
+        Label("Check for Updates...", systemImage: "arrow.triangle.2.circlepath")
+      }
+      .buttonStyle(.plain)
+      .padding(.horizontal, 12)
+      .padding(.vertical, 6)
+
       Divider()
 
       Button {

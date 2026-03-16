@@ -24,5 +24,9 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Giacomo. MIT License.</string>
+	<key>SUFeedURL</key>
+	<string>https://giacomo.github.io/scry/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string></string>
 </dict>
 </plist>

@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       onboardingController.show()
     }
 
+    // Start Sparkle updater
+    _ = UpdaterService.shared
+
     // Initialize services
     setupServices()
 

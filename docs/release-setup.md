@@ -1,0 +1,53 @@
+# Release Setup
+
+Scry is distributed as a DMG with auto-updates via [Sparkle 2](https://sparkle-project.org/). No Apple Developer account is required.
+
+## One-Time Setup
+
+### 1. Generate EdDSA signing keys
+
+```sh
+bash scripts/setup-sparkle-keys.sh
+```
+
+This runs Sparkle's `generate_keys` tool and prints a key pair.
+
+### 2. Store the private key in GitHub
+
+Go to **Settings → Secrets and variables → Actions** and create a secret:
+
+- **Name:** `SPARKLE_EDDSA_KEY`
+- **Value:** the private key from step 1
+
+### 3. Set the public key in project.yml
+
+In `app/project.yml`, replace the empty `SUPublicEDKey`:
+
+```yaml
+SUPublicEDKey: "your-public-key-here"
+```
+
+### 4. Enable GitHub Pages
+
+Go to **Settings → Pages** and set the source to the `gh-pages` branch.
+
+The appcast will be served at `https://<user>.github.io/<repo>/appcast.xml`.
+
+Update `SUFeedURL` in `app/project.yml` if your URL differs from the default.
+
+## How Releases Work
+
+1. Push to `main` with conventional commit prefixes (`feat:`, `fix:`, etc.)
+2. CI runs tests, then the `version` job creates a git tag
+3. The `release` job builds a Release binary, packages a DMG, and uploads it to GitHub Releases
+4. An `appcast.xml` is generated and deployed to the `gh-pages` branch
+5. Running copies of Scry check the appcast and prompt users to update
+
+## User Installation
+
+Since the app is not notarized, users see a Gatekeeper warning on first launch:
+
+1. Download the DMG from GitHub Releases
+2. Drag Scry.app to `/Applications`
+3. **Right-click → Open** (bypasses Gatekeeper for that app)
+4. Subsequent updates are handled automatically by Sparkle
