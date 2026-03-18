@@ -41,6 +41,7 @@ targets:
       path: Scry/App/Scry.entitlements
       properties:
         com.apple.security.app-sandbox: false
+        com.apple.security.cs.disable-library-validation: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.giacomo.Scry
@@ -59,12 +60,6 @@ targets:
             fi
           fi
         name: Inject Git Version
-      - script: |
-          FRAMEWORKS_DIR="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
-          if [ -d "$FRAMEWORKS_DIR" ]; then
-            find "$FRAMEWORKS_DIR" -name "*.framework" -exec codesign --force --sign - {} \;
-          fi
-        name: Re-sign Embedded Frameworks
     dependencies:
       - package: Sparkle
     scheme:
