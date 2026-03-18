@@ -14,6 +14,7 @@ final class SearchPanelController: NSObject {
     private var loadingBar: NSView!
     private var contentContainer: NSView!
     private var placeholderLabel: NSTextField!
+    private var grantButton: NSButton!
     private var currentQuery = ""
     private var currentProviders: [SearchProvider] = []
     private var selectedProviderIndex = 0
@@ -61,7 +62,7 @@ final class SearchPanelController: NSObject {
 
         // Load search or show hint for empty query
         if query.isEmpty {
-            showPlaceholder("Grant Screen Recording to enable text detection under cursor.")
+            showPlaceholder("Grant Screen Recording to enable text detection under cursor.", showGrant: true)
         } else {
             performSearch()
         }
@@ -123,9 +124,19 @@ final class SearchPanelController: NSObject {
         placeholderLabel.alignment = .center
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         contentContainer.addSubview(placeholderLabel)
+
+        grantButton = NSButton(title: "Grant", target: self, action: #selector(grantScreenRecording))
+        grantButton.bezelStyle = .rounded
+        grantButton.controlSize = .regular
+        grantButton.isHidden = true
+        grantButton.translatesAutoresizingMaskIntoConstraints = false
+        contentContainer.addSubview(grantButton)
+
         NSLayoutConstraint.activate([
             placeholderLabel.centerXAnchor.constraint(equalTo: contentContainer.centerXAnchor),
-            placeholderLabel.centerYAnchor.constraint(equalTo: contentContainer.centerYAnchor),
+            placeholderLabel.centerYAnchor.constraint(equalTo: contentContainer.centerYAnchor, constant: -12),
+            grantButton.centerXAnchor.constraint(equalTo: contentContainer.centerXAnchor),
+            grantButton.topAnchor.constraint(equalTo: placeholderLabel.bottomAnchor, constant: 12),
         ])
 
         webViewController = SearchWebViewController()
@@ -188,13 +199,24 @@ final class SearchPanelController: NSObject {
         ])
     }
 
-    private func showPlaceholder(_ text: String) {
+    private func showPlaceholder(_ text: String, showGrant: Bool = false) {
+        // Hide any previous search results so they don't show behind the placeholder
+        webViewController.webView.removeFromSuperview()
+        nativeResultView.removeFromSuperview()
+        aiResultView.removeFromSuperview()
+
         placeholderLabel.stringValue = text
         placeholderLabel.isHidden = false
+        grantButton.isHidden = !showGrant
     }
 
     private func hidePlaceholder() {
         placeholderLabel.isHidden = true
+        grantButton.isHidden = true
+    }
+
+    @objc private func grantScreenRecording() {
+        PermissionsService.shared.requestScreenRecording()
     }
 
     private func showWebContent(for provider: SearchProvider) {

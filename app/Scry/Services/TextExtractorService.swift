@@ -26,14 +26,18 @@ final class TextExtractorService {
     /// Snapshots the current selection at mouse-down time (before force-click
     /// auto-selects text). Tries AX first, then clipboard simulation for browsers.
     func snapshotSelection() {
-        // Try AX selected text (fast, works for native apps)
+        // Try AX selected text (fast, works for native apps).
+        // Clipboard simulation (Cmd+C) is intentionally NOT used here because
+        // snapshotSelection runs on every mouse-down system-wide, and injecting
+        // synthetic key events on every click disrupts other apps (e.g. the
+        // screenshot tool receives a spurious Cmd+C that cancels the capture).
+        // Clipboard-based extraction is deferred to extractText() which only
+        // runs when a search is actually triggered.
         if let text = extractViaAccessibility(), !text.isEmpty {
             preGestureSelection = text
             debugLog.log("TextExtractor", "Snapshot: got selection via AX", level: .debug)
             return
         }
-        // Try clipboard simulation (works for browsers and other apps where AX fails)
-        captureSelectionViaClipboard()
     }
 
     /// Async extraction pipeline: pre-gesture selection → word under cursor → Screenshot + OCR.
