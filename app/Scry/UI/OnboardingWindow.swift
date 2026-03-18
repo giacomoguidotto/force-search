@@ -93,6 +93,10 @@ struct OnboardingView: View {
         .frame(width: 420, height: 580)
         .onAppear {
             permissions.checkAll()
+            permissions.startPolling()
+        }
+        .onDisappear {
+            permissions.stopPolling()
         }
     }
 
