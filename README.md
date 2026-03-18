@@ -1,6 +1,8 @@
 # 🔮 Scry
 
 ![MIT License](https://img.shields.io/badge/license-MIT-blue)
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-black?logo=apple)
+![Latest Release](https://img.shields.io/github/v/release/giacomoguidotto/scry)
 
 Instant search & AI answers in a native floating panel, triggered by force-click or the Globe key, right where you're working.
 
