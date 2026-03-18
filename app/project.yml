@@ -59,6 +59,12 @@ targets:
             fi
           fi
         name: Inject Git Version
+      - script: |
+          FRAMEWORKS_DIR="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
+          if [ -d "$FRAMEWORKS_DIR" ]; then
+            find "$FRAMEWORKS_DIR" -name "*.framework" -exec codesign --force --sign - {} \;
+          fi
+        name: Re-sign Embedded Frameworks
     dependencies:
       - package: Sparkle
     scheme:

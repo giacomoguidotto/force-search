@@ -56,12 +56,7 @@ export function Navbar() {
             </button>
           )}
 
-          <ButtonLink
-            href="https://github.com/giacomoguidotto/scry/releases/latest"
-            rel="noopener noreferrer"
-            size="default"
-            target="_blank"
-          >
+          <ButtonLink href="/api/download" size="default">
             Download
           </ButtonLink>
         </div>

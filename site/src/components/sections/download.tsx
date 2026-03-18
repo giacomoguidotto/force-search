@@ -39,12 +39,7 @@ export function Download() {
         </motion.div>
 
         <motion.div className="mt-8" variants={staggerItem}>
-          <ButtonLink
-            href="https://github.com/giacomoguidotto/scry/releases/latest"
-            rel="noopener noreferrer"
-            size="lg"
-            target="_blank"
-          >
+          <ButtonLink href="/api/download" size="lg">
             <DownloadIcon className="h-5 w-5" />
             Download for macOS
           </ButtonLink>

@@ -45,12 +45,7 @@ export function Hero() {
           className="mt-8 flex flex-wrap items-center justify-center gap-4"
           variants={staggerItem}
         >
-          <ButtonLink
-            href="https://github.com/giacomoguidotto/scry/releases/latest"
-            rel="noopener noreferrer"
-            size="lg"
-            target="_blank"
-          >
+          <ButtonLink href="/api/download" size="lg">
             Download for macOS
           </ButtonLink>
           <ButtonLink
