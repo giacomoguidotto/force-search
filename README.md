@@ -1,95 +1,49 @@
-# Scry
+# 🔮 Scry
 
-Replace macOS's useless "Look Up" (Force Touch / Siri Knowledge) with instant Google search in a native floating panel, right where you force-clicked.
+Instant search & AI answers in a native floating panel — triggered by force-click or the Globe key, right where you're working.
 
-## Features
+**[Download](https://scry.guidotto.dev)** · macOS 13+
 
-- **Force Click to search** — force-click any selected text to instantly search it
-- **Global hotkey** — `Cmd+Shift+G` (configurable) to search selected text from anywhere
-- **Multiple search providers** — Google, DuckDuckGo, Wikipedia — switchable with `Cmd+1/2/3`
-- **Editable search bar** — refine your query without re-triggering
-- **Native floating panel** — frosted glass, non-activating, doesn't steal focus
-- **Keyboard-first UX** — `Esc` to close, `Cmd+Return` to open in browser, `Cmd+C` to copy URL
-- **Physics-based animations** — spring/ease curves, Raycast-inspired
-- **Fully configurable** — panel size, opacity, theme, providers, hotkey, pressure sensitivity
-- **Settings import/export** — JSON-based, portable between machines
-- **Zero dependencies** — Apple frameworks only (AppKit, WebKit, SwiftUI, Carbon, etc.)
+![MIT License](https://img.shields.io/badge/license-MIT-blue)
 
-## Requirements
+## ✨ What it does
 
-- macOS 13.0 (Ventura) or later
-- Accessibility permission (to read selected text)
-- Input Monitoring permission (to detect force-click)
+Select text anywhere on your Mac, then **force-click** or tap the **Globe key** — a floating panel appears with search results or AI answers. No app-switching, no browser tabs.
 
-## Getting started
+## 🔍 Providers
 
-### 1. Build and run
+| Web        | AI                   |
+| ---------- | -------------------- |
+| Google     | Claude               |
+| DuckDuckGo | OpenAI               |
+| Wikipedia  | Ollama (local, free) |
 
-```bash
-cd app
-xcodegen generate   # regenerate .xcodeproj from project.yml
-open Scry.xcodeproj
-```
+Switch between them with `Cmd+1/2/3`. AI providers can also analyze screenshots.
 
-Then hit `Cmd+R` in Xcode.
+## ⌨️ Shortcuts
 
-### 2. Grant permissions
+| Action               | Shortcut                     |
+| -------------------- | ---------------------------- |
+| Search selected text | Force-click or `Globe` key    |
+| Switch provider      | `Cmd+1/2/3`                  |
+| Open in browser      | `Cmd+Return`                 |
+| Copy URL             | `Cmd+C`                      |
+| Close panel          | `Esc`                        |
 
-On first launch, Scry will show an onboarding window guiding you through:
+## 🚀 Setup
 
-1. **Disable Look Up** — macOS Look Up uses force-click by default, which conflicts with Scry. Change it to three-finger tap or disable it.
-2. **Accessibility** — needed to read selected text from any app
-3. **Input Monitoring** — needed to detect force-click trackpad gestures
+On first launch, Scry guides you through three steps:
 
-You may need to restart Scry after granting permissions.
+1. **Disable Look Up** — macOS Look Up conflicts with force-click
+2. **Accessibility** — needed to read selected text
+3. **Input Monitoring** — needed to detect force-click
 
-### 3. Use it
-
-- **Select text** in any app, then **force-click** (press hard on trackpad) → search panel appears
-- Or press **Cmd+Shift+G** with text selected
-- **Edit the query** in the search bar, press Return to re-search
-- **Switch providers** with `Cmd+1` (Google), `Cmd+2` (DuckDuckGo), `Cmd+3` (Wikipedia)
-- **Cmd+Return** to open results in your browser
-- **Escape** or click outside to dismiss
-
-## Configuration
-
-Open Preferences from the menu bar icon:
-
-| Tab | Settings |
-|---|---|
-| **General** | Theme (system/light/dark), animations, panel size/opacity, launch at login |
-| **Providers** | Enable/disable providers, drag to reorder, set default |
-| **Shortcuts** | Global hotkey recorder, force-click sensitivity, keyboard reference |
-
-Settings can be exported/imported as JSON via the `...` menu in Preferences.
-
-## Architecture
-
-```
-Scry/
-├── App/              # Entry point, AppDelegate coordinator
-├── Services/         # EventTap, TextExtractor, HotKey, Permissions
-├── Providers/        # SearchProvider protocol + Google, DuckDuckGo, Wikipedia
-├── UI/               # SearchPanel (AppKit), Preferences (SwiftUI), Onboarding
-├── Models/           # AppSettings, KeyCombo, PanelAppearance enums
-└── Utilities/        # Constants, animation presets, NSScreen extensions
-```
-
-**Adding a new search provider:** implement the `SearchProvider` protocol and register it in `ProviderRegistry`. Web-based providers just return a URL + optional CSS/JS injection. Native providers return `[SearchResult]` for AppKit rendering.
-
-## Linting
-
-The project uses [SwiftLint](https://github.com/realm/SwiftLint) for code style enforcement:
+## 🛠 Build from source
 
 ```bash
 cd app
-swiftlint          # lint all source files
-swiftlint --fix    # auto-fix where possible
+xcodegen generate
+open Scry.xcodeproj    # then Cmd+R
 ```
 
-Configuration is in `app/.swiftlint.yml`.
-
-## License
-
-[MIT](LICENSE)
+Requires [XcodeGen](https://github.com/yonaskolb/XcodeGen). Lint with `swiftlint` (config in `app/.swiftlint.yml`).
