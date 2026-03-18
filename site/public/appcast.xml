@@ -6,12 +6,12 @@
     <description>Scry updates</description>
     <language>en</language>
     <item>
-      <title>Version 0.5.1</title>
-      <pubDate>Wed, 18 Mar 2026 12:22:34 +0000</pubDate>
-      <sparkle:version>0.5.1</sparkle:version>
-      <sparkle:shortVersionString>0.5.1</sparkle:shortVersionString>
+      <title>Version 0.5.2</title>
+      <pubDate>Wed, 18 Mar 2026 12:47:53 +0000</pubDate>
+      <sparkle:version>0.5.2</sparkle:version>
+      <sparkle:shortVersionString>0.5.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-      <enclosure url="https://github.com/giacomoguidotto/scry/releases/download/v0.5.1/Scry-0.5.1.dmg" length="17413567" type="application/octet-stream" sparkle:edSignature="sparkle:edSignature=f8IQ3kyWcqksbYp6LontL9YVVy8JaTxlbljOkpY19B1AfL9X1LgkFkl0f4XR/qzUsYzvUiLyaLtFn4ogzi9ABg== length=17413567"/>
+      <enclosure url="https://github.com/giacomoguidotto/scry/releases/download/v0.5.2/Scry-0.5.2.dmg" length="17413538" type="application/octet-stream" sparkle:edSignature="sparkle:edSignature=D7yJO3xWDUHmVmKWAeJN+ENCFW8C5M9xNbHTBVHiUjuJm4VRduPdAyy8Nc5zQb+RBJDwjUsTlpHJWYUdRct0Ag== length=17413538"/>
     </item>
   </channel>
 </rss>
