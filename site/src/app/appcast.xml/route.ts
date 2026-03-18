@@ -52,7 +52,6 @@ export async function GET() {
     <item>
       <title>Version ${version}</title>
       <pubDate>${pubDate}</pubDate>
-      <sparkle:version>${version}</sparkle:version>
       <sparkle:shortVersionString>${version}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
       <enclosure url="${dmg.browser_download_url}" length="${dmg.size}" type="application/octet-stream" ${signatureAttr}/>
