@@ -20,18 +20,29 @@ fi
 echo "Found generate_keys at: $GENERATE_KEYS"
 echo ""
 
-# Generate keys
-"$GENERATE_KEYS"
+# Generate keys (first run creates and stores in Keychain)
+PRIVATE_KEY_FILE=$(mktemp)
+rm -f "$PRIVATE_KEY_FILE"
+trap 'rm -f "$PRIVATE_KEY_FILE"' EXIT
 
+# Export private key to temp file (suppress stdout)
+"$GENERATE_KEYS" -x "$PRIVATE_KEY_FILE" > /dev/null
+
+# Capture public key (suppress the instructional text)
+PUBLIC_KEY=$("$GENERATE_KEYS" -p 2>&1 | grep -v "^$" | tail -1)
+
+echo "PUBLIC key:"
+echo "  $PUBLIC_KEY"
+echo ""
+echo "PRIVATE key:"
+echo "  $(cat "$PRIVATE_KEY_FILE")"
 echo ""
 echo "=== Next Steps ==="
 echo ""
-echo "1. Copy the PRIVATE key and add it as a GitHub secret:"
+echo "1. Add the PRIVATE key as a GitHub secret:"
 echo "   Name: SPARKLE_EDDSA_KEY"
-echo "   Value: (the private key output above)"
 echo ""
-echo "2. Copy the PUBLIC key and set it in app/project.yml:"
-echo "   SUPublicEDKey: \"<your-public-key>\""
+echo "2. Set the PUBLIC key in app/project.yml:"
+echo "   SUPublicEDKey: \"$PUBLIC_KEY\""
 echo ""
 echo "3. Enable GitHub Pages on the 'gh-pages' branch for your repo."
-echo ""
