@@ -12,14 +12,14 @@ DMG_SIZE=$(stat -f%z "$DMG" 2>/dev/null || stat --printf="%s" "$DMG" 2>/dev/null
 REPO_URL=$(git remote get-url origin 2>/dev/null | sed 's/\.git$//' | sed 's|git@github.com:|https://github.com/|')
 DOWNLOAD_URL="${REPO_URL}/releases/download/${TAG}/${DMG}"
 
-mkdir -p site
+mkdir -p site/public
 
 SIGNATURE_ATTR=""
 if [ -n "$SIGNATURE" ]; then
     SIGNATURE_ATTR="sparkle:edSignature=\"${SIGNATURE}\""
 fi
 
-cat > site/appcast.xml << APPCAST_EOF
+cat > site/public/appcast.xml << APPCAST_EOF
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
@@ -39,4 +39,4 @@ cat > site/appcast.xml << APPCAST_EOF
 </rss>
 APPCAST_EOF
 
-echo "Generated site/appcast.xml for ${TAG}"
+echo "Generated site/public/appcast.xml for ${TAG}"

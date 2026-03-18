@@ -194,24 +194,19 @@ jobs:
           gh release create "$TAG" --title "$TAG" 2>/dev/null || true
           gh release upload "$TAG" "$DMG" --clobber
 
-      - name: Generate and deploy appcast
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Generate and commit appcast
         run: |
           TAG="${{ needs.version.outputs.tag }}"
           DMG="${{ steps.dmg.outputs.dmg_name }}"
           SIGNATURE="${{ steps.sign.outputs.signature }}"
           bash scripts/generate-appcast.sh "$TAG" "$DMG" "$SIGNATURE"
 
-          # Deploy appcast to gh-pages
+          # Commit appcast to main so Vercel serves it
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan gh-pages-tmp
-          git rm -rf . 2>/dev/null || true
-          cp site/appcast.xml .
-          git add appcast.xml
-          git commit -m "Update appcast for $TAG"
-          git push origin HEAD:gh-pages --force
+          git add site/public/appcast.xml
+          git commit -m "chore: update appcast for $TAG"
+          git push origin main
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

@@ -27,20 +27,18 @@ In `app/project.yml`, replace the empty `SUPublicEDKey`:
 SUPublicEDKey: "your-public-key-here"
 ```
 
-### 4. Enable GitHub Pages
+### 4. Appcast hosting
 
-Go to **Settings → Pages** and set the source to the `gh-pages` branch.
+The appcast is served from the Next.js site on Vercel at `https://scry.guidotto.dev/appcast.xml`.
 
-The appcast will be served at `https://<user>.github.io/<repo>/appcast.xml`.
-
-Update `SUFeedURL` in `app/project.yml` if your URL differs from the default.
+CI deploys the generated `appcast.xml` to `site/public/` so Vercel serves it as a static file.
 
 ## How Releases Work
 
 1. Push to `main` with conventional commit prefixes (`feat:`, `fix:`, etc.)
 2. CI runs tests, then the `version` job creates a git tag
 3. The `release` job builds a Release binary, packages a DMG, and uploads it to GitHub Releases
-4. An `appcast.xml` is generated and deployed to the `gh-pages` branch
+4. An `appcast.xml` is generated and committed to `site/public/` for Vercel to serve
 5. Running copies of Scry check the appcast and prompt users to update
 
 ## User Installation

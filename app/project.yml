@@ -35,7 +35,7 @@ targets:
         CFBundleVersion: "1"
         NSHumanReadableCopyright: "Copyright © 2026 Giacomo. MIT License."
         LSMinimumSystemVersion: "13.0"
-        SUFeedURL: "https://giacomo.github.io/scry/appcast.xml"
+        SUFeedURL: "https://scry.guidotto.dev/appcast.xml"
         SUPublicEDKey: "z6kjszjyTcE8HwTP00ZTuCeP73I5CCI70seGdUqyXjE="
     entitlements:
       path: Scry/App/Scry.entitlements
