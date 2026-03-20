@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   description:
     "Replace macOS Look Up with instant search. Google, DuckDuckGo, Wikipedia, AI, right where you clicked.",
   metadataBase: new URL("https://scry.guidotto.dev"),
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     title: "Scry | Instant multi-provider search for macOS",
     description:
