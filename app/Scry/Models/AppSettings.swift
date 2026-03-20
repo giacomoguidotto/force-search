@@ -11,27 +11,12 @@ final class AppSettings: ObservableObject {
 
   // MARK: - Trigger
 
-  @Published var forceClickEnabled: Bool = true {
-    didSet { defaults.set(forceClickEnabled, forKey: Keys.forceClickEnabled) }
+  @Published var forceClick: Bool = true {
+    didSet { defaults.set(forceClick, forKey: Keys.forceClick) }
   }
 
-  @Published var doubleTapEnabled: Bool = true {
-    didSet { defaults.set(doubleTapEnabled, forKey: Keys.doubleTapEnabled) }
-  }
-
-  @Published var doubleTapModifier: DoubleTapModifier = .globe {
-    didSet { defaults.set(doubleTapModifier.rawValue, forKey: Keys.doubleTapModifier) }
-  }
-
-  @Published var hotKeyEnabled: Bool = false {
-    didSet { defaults.set(hotKeyEnabled, forKey: Keys.hotKeyEnabled) }
-  }
-
-  @Published var hotKey: KeyCombo = .default {
-    didSet {
-      defaults.set(hotKey.keyCode, forKey: Keys.hotKeyKeyCode)
-      defaults.set(hotKey.modifiers, forKey: Keys.hotKeyModifiers)
-    }
+  @Published var hotkey: Hotkey = .modifierTap(.globe) {
+    didSet { defaults.set(hotkey.configString, forKey: Keys.hotkey) }
   }
 
   @Published var pressureSensitivity: Double = Constants.Defaults.pressureSensitivity {
@@ -117,10 +102,6 @@ final class AppSettings: ObservableObject {
     didSet { defaults.set(showMenuBarIcon, forKey: Keys.showMenuBarIcon) }
   }
 
-  @Published var menuBarIconStyle: MenuBarIconStyle = .magnifyingGlass {
-    didSet { defaults.set(menuBarIconStyle.rawValue, forKey: Keys.menuBarIconStyle) }
-  }
-
   @Published var hasCompletedOnboarding: Bool = false {
     didSet { defaults.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
   }
@@ -169,32 +150,51 @@ final class AppSettings: ObservableObject {
   }
 
   private func loadTriggerSettings(from d: UserDefaults) {
-    // Migrate legacy triggerMethod → forceClickEnabled
-    if d.object(forKey: Keys.forceClickEnabled) != nil {
-      forceClickEnabled = d.bool(forKey: Keys.forceClickEnabled)
+    // forceClick (renamed from forceClickEnabled)
+    if d.object(forKey: Keys.forceClick) != nil {
+      forceClick = d.bool(forKey: Keys.forceClick)
+    } else if d.object(forKey: Keys.forceClickEnabled) != nil {
+      forceClick = d.bool(forKey: Keys.forceClickEnabled)
     } else if let raw = d.string(forKey: Keys.triggerMethod) {
-      forceClickEnabled = (raw == "forceClick")
-    }
-    if d.object(forKey: Keys.doubleTapEnabled) != nil {
-      doubleTapEnabled = d.bool(forKey: Keys.doubleTapEnabled)
-    }
-    if let raw = d.string(forKey: Keys.doubleTapModifier),
-       let val = DoubleTapModifier(rawValue: raw) {
-      doubleTapModifier = val
-    }
-    if d.object(forKey: Keys.hotKeyEnabled) != nil {
-      hotKeyEnabled = d.bool(forKey: Keys.hotKeyEnabled)
+      forceClick = (raw == "forceClick")
     }
 
-    let storedKeyCode = d.object(forKey: Keys.hotKeyKeyCode) as? UInt32
-    let storedModifiers = d.object(forKey: Keys.hotKeyModifiers) as? UInt32
-    if let kc = storedKeyCode, let mod = storedModifiers {
-      hotKey = KeyCombo(keyCode: kc, modifiers: NSEvent.ModifierFlags.fromCarbon(mod))
+    // hotkey (replaces doubleTapEnabled + doubleTapModifier + hotKeyEnabled + hotKey)
+    if let raw = d.string(forKey: Keys.hotkey) {
+      hotkey = Hotkey(configString: raw)
+    } else {
+      hotkey = migrateHotkeyFromLegacyKeys(d)
     }
 
     if d.object(forKey: Keys.pressureSensitivity) != nil {
       pressureSensitivity = d.double(forKey: Keys.pressureSensitivity)
     }
+  }
+
+  private func migrateHotkeyFromLegacyKeys(_ d: UserDefaults) -> Hotkey {
+    let dtEnabled = d.object(forKey: Keys.doubleTapEnabled) != nil
+      ? d.bool(forKey: Keys.doubleTapEnabled) : true
+    let hkEnabled = d.object(forKey: Keys.hotKeyEnabled) != nil
+      ? d.bool(forKey: Keys.hotKeyEnabled) : false
+
+    if dtEnabled {
+      let modifier: DoubleTapModifier
+      if let raw = d.string(forKey: Keys.doubleTapModifier),
+         let val = DoubleTapModifier(rawValue: raw) {
+        modifier = val
+      } else {
+        modifier = .globe
+      }
+      // Globe uses auto single/double; other modifiers default to double-tap
+      return modifier == .globe ? .modifierTap(.globe) : .modifierDoubleTap(modifier)
+    } else if hkEnabled {
+      let storedKeyCode = d.object(forKey: Keys.hotKeyKeyCode) as? UInt32
+      let storedModifiers = d.object(forKey: Keys.hotKeyModifiers) as? UInt32
+      if let kc = storedKeyCode, let mod = storedModifiers {
+        return .keyCombo(KeyCombo(keyCode: kc, modifiers: NSEvent.ModifierFlags.fromCarbon(mod)))
+      }
+    }
+    return .modifierTap(.globe)
   }
 
   private func loadAppearanceSettings(from d: UserDefaults) {
@@ -255,10 +255,6 @@ final class AppSettings: ObservableObject {
     if d.object(forKey: Keys.showMenuBarIcon) != nil {
       showMenuBarIcon = d.bool(forKey: Keys.showMenuBarIcon)
     }
-    if let raw = d.string(forKey: Keys.menuBarIconStyle),
-       let val = MenuBarIconStyle(rawValue: raw) {
-      menuBarIconStyle = val
-    }
     if d.object(forKey: Keys.hasCompletedOnboarding) != nil {
       hasCompletedOnboarding = d.bool(forKey: Keys.hasCompletedOnboarding)
     }
@@ -279,94 +275,14 @@ final class AppSettings: ObservableObject {
     }
   }
 
-  // MARK: - Export / Import
+  // MARK: - ConfigFile Bridge
 
-  func exportSettings() -> Data? {
-    let dict: [String: Any] = [
-      Keys.forceClickEnabled: forceClickEnabled,
-      Keys.doubleTapEnabled: doubleTapEnabled,
-      Keys.doubleTapModifier: doubleTapModifier.rawValue,
-      Keys.hotKeyEnabled: hotKeyEnabled,
-      Keys.hotKeyKeyCode: hotKey.keyCode,
-      Keys.hotKeyModifiers: hotKey.modifiers,
-      Keys.pressureSensitivity: pressureSensitivity,
-      Keys.panelWidth: panelWidth,
-      Keys.panelHeight: panelHeight,
-      Keys.panelOpacity: panelOpacity,
-      Keys.cornerRadius: cornerRadius,
-      Keys.showAnimations: showAnimations,
-      Keys.theme: theme.rawValue,
-      Keys.defaultProvider: defaultProvider,
-      Keys.rememberLastProvider: rememberLastProvider,
-      Keys.dismissOnLinkClick: dismissOnLinkClick,
-      Keys.openLinksIn: openLinksIn.rawValue,
-      Keys.showShortcutHints: showShortcutHints,
-      Keys.maxQueryLength: maxQueryLength,
-      Keys.enabledProviders: enabledProviders,
-      Keys.providerOrder: providerOrder,
-      Keys.launchAtLogin: launchAtLogin,
-      Keys.showMenuBarIcon: showMenuBarIcon,
-      Keys.menuBarIconStyle: menuBarIconStyle.rawValue,
-      Keys.aiEnabled: aiEnabled,
-      Keys.aiProviderType: aiProviderType.rawValue,
-      Keys.aiAPIKey: aiAPIKey,
-      Keys.aiModel: aiModel,
-      Keys.aiCustomEndpoint: aiCustomEndpoint,
-      Keys.screenshotRegionSize: screenshotRegionSize,
-    ]
-    return try? JSONSerialization.data(
-      withJSONObject: dict, options: [.prettyPrinted, .sortedKeys])
+  func apply(_ config: ConfigFile) {
+    config.apply(to: self)
   }
 
-  func importSettings(from data: Data) -> Bool {
-    guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-      return false
-    }
-
-    if let val = dict[Keys.forceClickEnabled] as? Bool { forceClickEnabled = val }
-    if let val = dict[Keys.doubleTapEnabled] as? Bool { doubleTapEnabled = val }
-    if let raw = dict[Keys.doubleTapModifier] as? String,
-       let val = DoubleTapModifier(rawValue: raw) { doubleTapModifier = val }
-    if let val = dict[Keys.hotKeyEnabled] as? Bool { hotKeyEnabled = val }
-    if let kc = dict[Keys.hotKeyKeyCode] as? UInt32,
-       let mod = dict[Keys.hotKeyModifiers] as? UInt32 {
-      hotKey = KeyCombo(keyCode: kc, modifiers: NSEvent.ModifierFlags.fromCarbon(mod))
-    }
-    if let val = dict[Keys.pressureSensitivity] as? Double { pressureSensitivity = val }
-    if let val = dict[Keys.panelWidth] as? CGFloat { panelWidth = val }
-    if let val = dict[Keys.panelHeight] as? CGFloat { panelHeight = val }
-    if let val = dict[Keys.panelOpacity] as? Double { panelOpacity = val }
-    if let val = dict[Keys.cornerRadius] as? CGFloat { cornerRadius = val }
-    if let val = dict[Keys.showAnimations] as? Bool { showAnimations = val }
-    if let raw = dict[Keys.theme] as? String, let val = Theme(rawValue: raw) { theme = val }
-    if let val = dict[Keys.defaultProvider] as? String { defaultProvider = val }
-    if let val = dict[Keys.rememberLastProvider] as? Bool { rememberLastProvider = val }
-    if let val = dict[Keys.dismissOnLinkClick] as? Bool { dismissOnLinkClick = val }
-    if let raw = dict[Keys.openLinksIn] as? String, let val = LinkTarget(rawValue: raw) {
-      openLinksIn = val
-    }
-    if let val = dict[Keys.showShortcutHints] as? Bool { showShortcutHints = val }
-    if let val = dict[Keys.maxQueryLength] as? Int { maxQueryLength = val }
-    if let val = dict[Keys.enabledProviders] as? [String] { enabledProviders = val }
-    if let val = dict[Keys.providerOrder] as? [String] { providerOrder = val }
-    if let val = dict[Keys.launchAtLogin] as? Bool { launchAtLogin = val }
-    if let val = dict[Keys.showMenuBarIcon] as? Bool { showMenuBarIcon = val }
-    if let raw = dict[Keys.menuBarIconStyle] as? String, let val = MenuBarIconStyle(rawValue: raw) {
-      menuBarIconStyle = val
-    }
-    importAISettings(from: dict)
-    return true
-  }
-
-  private func importAISettings(from dict: [String: Any]) {
-    if let val = dict[Keys.aiEnabled] as? Bool { aiEnabled = val }
-    if let raw = dict[Keys.aiProviderType] as? String, let val = AIProviderType(rawValue: raw) {
-      aiProviderType = val
-    }
-    if let val = dict[Keys.aiAPIKey] as? String { aiAPIKey = val }
-    if let val = dict[Keys.aiModel] as? String { aiModel = val }
-    if let val = dict[Keys.aiCustomEndpoint] as? String { aiCustomEndpoint = val }
-    if let val = dict[Keys.screenshotRegionSize] as? CGFloat { screenshotRegionSize = val }
+  func toConfigFile() -> ConfigFile {
+    ConfigFile(from: self)
   }
 
   /// The effective provider ID to use when opening a new panel.
@@ -388,7 +304,8 @@ final class AppSettings: ObservableObject {
         try service.unregister()
       }
     } catch {
-      DebugLogStore.shared.log("Settings", "Launch at login failed: \(error.localizedDescription)", level: .error)
+      DebugLogStore.shared.log(
+        "Settings", "Launch at login failed: \(error.localizedDescription)", level: .error)
     }
   }
 }

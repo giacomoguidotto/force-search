@@ -35,65 +35,33 @@ struct PreferencesView: View {
     @State private var selectedSection: PreferenceSection = .general
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             List(PreferenceSection.allCases, selection: $selectedSection) { section in
                 Label(section.title, systemImage: section.icon)
                     .tag(section)
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 150, ideal: 170, max: 200)
-        } detail: {
-            switch selectedSection {
-            case .general:
-                GeneralPreferencesView()
-            case .providers:
-                ProvidersPreferencesView()
-            case .shortcuts:
-                ShortcutsPreferencesView()
-            case .ai:
-                AIPreferencesView()
-            case .console:
-                DebugConsoleView()
-            }
+            .frame(width: 170)
+
+            detailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 680, minHeight: 500)
-        .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
-                Spacer()
-                Menu {
-                    Button("Export Settings...") { exportSettings() }
-                    Button("Import Settings...") { importSettings() }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-        }
     }
 
-    private func exportSettings() {
-        guard let data = AppSettings.shared.exportSettings() else { return }
-
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "Scry-settings.json"
-
-        panel.begin { result in
-            if result == .OK, let url = panel.url {
-                try? data.write(to: url)
-            }
-        }
-    }
-
-    private func importSettings() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.json]
-        panel.allowsMultipleSelection = false
-
-        panel.begin { result in
-            if result == .OK, let url = panel.url,
-               let data = try? Data(contentsOf: url) {
-                _ = AppSettings.shared.importSettings(from: data)
-            }
+    @ViewBuilder
+    private var detailView: some View {
+        switch selectedSection {
+        case .general:
+            GeneralPreferencesView()
+        case .providers:
+            ProvidersPreferencesView()
+        case .shortcuts:
+            ShortcutsPreferencesView()
+        case .ai:
+            AIPreferencesView()
+        case .console:
+            DebugConsoleView()
         }
     }
 }

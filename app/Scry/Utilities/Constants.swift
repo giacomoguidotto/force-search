@@ -48,13 +48,8 @@ enum Constants {
     }
 
     enum UserDefaultsKeys {
-        static let triggerMethod = "triggerMethod"  // legacy — migrated to forceClickEnabled
-        static let forceClickEnabled = "forceClickEnabled"
-        static let doubleTapEnabled = "doubleTapEnabled"
-        static let doubleTapModifier = "doubleTapModifier"
-        static let hotKeyEnabled = "hotKeyEnabled"
-        static let hotKeyKeyCode = "hotKeyKeyCode"
-        static let hotKeyModifiers = "hotKeyModifiers"
+        static let forceClick = "forceClick"
+        static let hotkey = "hotkey"
         static let pressureSensitivity = "pressureSensitivity"
         static let panelWidth = "panelWidth"
         static let panelHeight = "panelHeight"
@@ -73,7 +68,6 @@ enum Constants {
         static let providerOrder = "providerOrder"
         static let launchAtLogin = "launchAtLogin"
         static let showMenuBarIcon = "showMenuBarIcon"
-        static let menuBarIconStyle = "menuBarIconStyle"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let aiEnabled = "aiEnabled"
         static let aiProviderType = "aiProviderType"
@@ -81,5 +75,14 @@ enum Constants {
         static let aiModel = "aiModel"
         static let aiCustomEndpoint = "aiCustomEndpoint"
         static let screenshotRegionSize = "screenshotRegionSize"
+
+        // Legacy keys for migration only
+        static let triggerMethod = "triggerMethod"
+        static let forceClickEnabled = "forceClickEnabled"
+        static let doubleTapEnabled = "doubleTapEnabled"
+        static let doubleTapModifier = "doubleTapModifier"
+        static let hotKeyEnabled = "hotKeyEnabled"
+        static let hotKeyKeyCode = "hotKeyKeyCode"
+        static let hotKeyModifiers = "hotKeyModifiers"
     }
 }

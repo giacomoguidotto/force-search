@@ -101,8 +101,8 @@ struct DebugConsoleView: View {
 
                     // Configuration
                     VStack(spacing: 0) {
-                        configRow("Force Click", settings.forceClickEnabled ? "Enabled" : "Disabled")
-                        configRow("Global Hotkey", settings.hotKeyEnabled ? "Enabled" : "Disabled")
+                        configRow("Force Click", settings.forceClick ? "Enabled" : "Disabled")
+                        configRow("Hotkey", settings.hotkey.configString.isEmpty ? "Disabled" : settings.hotkey.configString)
                         configRow("Pressure threshold", String(format: "%.2f", settings.pressureSensitivity))
                         configRow("Event tap", log.eventTapStatus)
                     }

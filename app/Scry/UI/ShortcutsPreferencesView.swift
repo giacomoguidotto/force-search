@@ -16,13 +16,8 @@ struct ShortcutsPreferencesView: View {
                 HStack {
                     Text("Scry Hotkey")
                     Spacer()
-                    UnifiedHotKeyRecorderView(
-                        doubleTapEnabled: $settings.doubleTapEnabled,
-                        doubleTapModifier: $settings.doubleTapModifier,
-                        hotKeyEnabled: $settings.hotKeyEnabled,
-                        hotKey: $settings.hotKey
-                    )
-                    .frame(width: 160, height: 28)
+                    UnifiedHotKeyRecorderView(hotkey: $settings.hotkey)
+                        .frame(width: 160, height: 28)
                 }
 
                 if showGlobeWarning {
@@ -37,9 +32,9 @@ struct ShortcutsPreferencesView: View {
             }
 
             Section {
-                Toggle("Enable Force Click", isOn: $settings.forceClickEnabled)
+                Toggle("Enable Force Click", isOn: $settings.forceClick)
 
-                if settings.forceClickEnabled {
+                if settings.forceClick {
                     HStack {
                         Text("Sensitivity")
                         Slider(value: $settings.pressureSensitivity, in: 0.1...1.0, step: 0.05)
@@ -78,9 +73,7 @@ struct ShortcutsPreferencesView: View {
     // MARK: - Globe Warning
 
     private var showGlobeWarning: Bool {
-        settings.doubleTapEnabled
-            && settings.doubleTapModifier == .globe
-            && permissions.globeKeyConflict
+        settings.hotkey.isGlobeTap && permissions.globeKeyConflict
     }
 
     private var globeConflictBanner: some View {
@@ -107,30 +100,41 @@ struct ShortcutsPreferencesView: View {
     // MARK: - Computed
 
     private var hotkeyFooter: String {
-        if settings.doubleTapEnabled {
-            if settings.doubleTapModifier == .globe && !permissions.globeKeyConflict {
+        switch settings.hotkey {
+        case .modifierTap(let mod):
+            if mod == .globe && !permissions.globeKeyConflict {
                 return "Tap the Globe key to trigger a search."
             }
+            if mod == .globe {
+                return "Tap the modifier key twice to trigger a search."
+            }
+            return "Tap the modifier key to trigger a search."
+        case .modifierDoubleTap:
             return "Tap the modifier key twice to trigger a search."
+        case .keyCombo(let combo):
+            return "Press \(combo.displayString) anywhere to trigger a search."
+        case .none:
+            return "Record a shortcut to trigger Scry from anywhere."
         }
-        if settings.hotKeyEnabled {
-            return "Press \(settings.hotKey.displayString) anywhere to trigger a search."
-        }
-        return "Record a shortcut to trigger Scry from anywhere."
     }
 
     private var hotkeyDisplayLabel: String {
-        if settings.doubleTapEnabled {
-            let sym = settings.doubleTapModifier.symbol
-            if settings.doubleTapModifier == .globe && !permissions.globeKeyConflict {
-                return sym
+        switch settings.hotkey {
+        case .modifierTap(let mod):
+            if mod == .globe && !permissions.globeKeyConflict {
+                return mod.symbol
             }
-            return "\(sym) \(sym)"
+            if mod == .globe {
+                return "\(mod.symbol) \(mod.symbol)"
+            }
+            return mod.symbol
+        case .modifierDoubleTap(let mod):
+            return "\(mod.symbol) \(mod.symbol)"
+        case .keyCombo(let combo):
+            return combo.displayString
+        case .none:
+            return "None"
         }
-        if settings.hotKeyEnabled {
-            return settings.hotKey.displayString
-        }
-        return "None"
     }
 
     @ViewBuilder
@@ -152,32 +156,28 @@ struct ShortcutsPreferencesView: View {
 
 // MARK: - Unified Hotkey Recorder
 
-/// A single recorder field like Raycast: click to record, then either:
+/// A single recorder field: click to record, then either:
 /// - Press modifier+key for a standard hotkey
 /// - Tap a modifier key twice for a double-tap trigger
-/// - Tap Globe once (detected as double-tap Globe with single-tap mode)
+/// - Tap Globe once (if set to "Do Nothing")
 /// Press Escape or Delete to clear. Click again to cancel.
 struct UnifiedHotKeyRecorderView: NSViewRepresentable {
-    @Binding var doubleTapEnabled: Bool
-    @Binding var doubleTapModifier: DoubleTapModifier
-    @Binding var hotKeyEnabled: Bool
-    @Binding var hotKey: KeyCombo
+    @Binding var hotkey: Hotkey
 
     func makeNSView(context: Context) -> UnifiedHotKeyRecorderNSView {
         let view = UnifiedHotKeyRecorderNSView()
         view.onResult = { result in
             switch result {
             case let .keyCombo(combo):
-                doubleTapEnabled = false
-                hotKeyEnabled = true
-                hotKey = combo
+                hotkey = .keyCombo(combo)
             case let .doubleTapModifier(modifier):
-                hotKeyEnabled = false
-                doubleTapEnabled = true
-                doubleTapModifier = modifier
+                if modifier == .globe {
+                    hotkey = .modifierTap(.globe)
+                } else {
+                    hotkey = .modifierDoubleTap(modifier)
+                }
             case .cleared:
-                doubleTapEnabled = false
-                hotKeyEnabled = false
+                hotkey = .none
             }
         }
         return view
@@ -189,16 +189,22 @@ struct UnifiedHotKeyRecorderView: NSViewRepresentable {
     }
 
     private var currentDisplayText: String {
-        if doubleTapEnabled {
-            let sym = doubleTapModifier.symbol
-            let globeSingle = doubleTapModifier == .globe
-                && !PermissionsService.shared.globeKeyConflict
-            return globeSingle ? sym : "\(sym) \(sym)"
+        switch hotkey {
+        case .modifierTap(let mod):
+            if mod == .globe && !PermissionsService.shared.globeKeyConflict {
+                return mod.symbol
+            }
+            if mod == .globe {
+                return "\(mod.symbol) \(mod.symbol)"
+            }
+            return mod.symbol
+        case .modifierDoubleTap(let mod):
+            return "\(mod.symbol) \(mod.symbol)"
+        case .keyCombo(let combo):
+            return combo.displayString
+        case .none:
+            return "Record Hotkey"
         }
-        if hotKeyEnabled {
-            return hotKey.displayString
-        }
-        return "Record Hotkey"
     }
 }
 

@@ -8,10 +8,8 @@ final class AppSettingsTests: XCTestCase {
         // Reset relevant UserDefaults keys and singleton properties before each test
         let defaults = UserDefaults.standard
         let keys = [
-            Constants.UserDefaultsKeys.forceClickEnabled,
-            Constants.UserDefaultsKeys.doubleTapEnabled,
-            Constants.UserDefaultsKeys.doubleTapModifier,
-            Constants.UserDefaultsKeys.hotKeyEnabled,
+            Constants.UserDefaultsKeys.forceClick,
+            Constants.UserDefaultsKeys.hotkey,
             Constants.UserDefaultsKeys.pressureSensitivity,
             Constants.UserDefaultsKeys.panelWidth,
             Constants.UserDefaultsKeys.panelHeight,
@@ -25,10 +23,8 @@ final class AppSettingsTests: XCTestCase {
 
         // Reset singleton properties to code defaults (CI may have overridden them)
         let settings = AppSettings.shared
-        settings.forceClickEnabled = true
-        settings.doubleTapEnabled = true
-        settings.doubleTapModifier = .globe
-        settings.hotKeyEnabled = false
+        settings.forceClick = true
+        settings.hotkey = .modifierTap(.globe)
         settings.pressureSensitivity = Constants.Defaults.pressureSensitivity
         settings.panelWidth = Constants.Panel.defaultWidth
         settings.panelHeight = Constants.Panel.defaultHeight
@@ -41,10 +37,8 @@ final class AppSettingsTests: XCTestCase {
 
     func testDefaultValues() {
         let settings = AppSettings.shared
-        XCTAssertTrue(settings.forceClickEnabled)
-        XCTAssertTrue(settings.doubleTapEnabled)
-        XCTAssertEqual(settings.doubleTapModifier, .globe)
-        XCTAssertFalse(settings.hotKeyEnabled)
+        XCTAssertTrue(settings.forceClick)
+        XCTAssertEqual(settings.hotkey, .modifierTap(.globe))
         XCTAssertEqual(settings.pressureSensitivity, Constants.Defaults.pressureSensitivity)
         XCTAssertEqual(settings.panelWidth, Constants.Panel.defaultWidth)
         XCTAssertEqual(settings.panelHeight, Constants.Panel.defaultHeight)
@@ -72,33 +66,4 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.effectiveProvider, "wikipedia")
     }
 
-    func testExportImportRoundTrip() {
-        let settings = AppSettings.shared
-        settings.panelWidth = 600
-        settings.theme = .dark
-        settings.showAnimations = false
-
-        guard let data = settings.exportSettings() else {
-            XCTFail("Export returned nil")
-            return
-        }
-
-        // Reset
-        settings.panelWidth = Constants.Panel.defaultWidth
-        settings.theme = .system
-        settings.showAnimations = true
-
-        // Import
-        let success = settings.importSettings(from: data)
-        XCTAssertTrue(success)
-        XCTAssertEqual(settings.panelWidth, 600)
-        XCTAssertEqual(settings.theme, .dark)
-        XCTAssertFalse(settings.showAnimations)
-    }
-
-    func testImportInvalidData() {
-        let settings = AppSettings.shared
-        let garbage = Data("not json".utf8)
-        XCTAssertFalse(settings.importSettings(from: garbage))
-    }
 }

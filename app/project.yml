@@ -11,6 +11,9 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: "2.6.0"
+  TOMLKit:
+    url: https://github.com/LebJe/TOMLKit
+    from: "0.6.0"
 
 settings:
   base:
@@ -62,6 +65,7 @@ targets:
         name: Inject Git Version
     dependencies:
       - package: Sparkle
+      - package: TOMLKit
     scheme:
       testTargets:
         - ScryTests

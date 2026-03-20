@@ -7,10 +7,8 @@ final class PanelAppearanceTests: XCTestCase {
     override func setUp() {
         super.setUp()
         let settings = AppSettings.shared
-        settings.forceClickEnabled = true
-        settings.doubleTapEnabled = true
-        settings.doubleTapModifier = .globe
-        settings.hotKeyEnabled = false
+        settings.forceClick = true
+        settings.hotkey = .modifierTap(.globe)
     }
 
     func testThemeAppearanceNames() {
@@ -27,23 +25,15 @@ final class PanelAppearanceTests: XCTestCase {
         }
     }
 
-    func testForceClickAndHotKeyDefaults() {
+    func testForceClickAndHotkeyDefaults() {
         let settings = AppSettings.shared
-        XCTAssertTrue(settings.forceClickEnabled)
-        XCTAssertTrue(settings.doubleTapEnabled)
-        XCTAssertEqual(settings.doubleTapModifier, .globe)
-        XCTAssertFalse(settings.hotKeyEnabled)
+        XCTAssertTrue(settings.forceClick)
+        XCTAssertEqual(settings.hotkey, .modifierTap(.globe))
     }
 
     func testLinkTargetBundleIdentifiers() {
         XCTAssertNil(LinkTarget.defaultBrowser.bundleIdentifier)
         XCTAssertNotNil(LinkTarget.safari.bundleIdentifier)
         XCTAssertNotNil(LinkTarget.chrome.bundleIdentifier)
-    }
-
-    func testMenuBarIconStyleSymbolNames() {
-        for style in MenuBarIconStyle.allCases {
-            XCTAssertFalse(style.symbolName.isEmpty)
-        }
     }
 }

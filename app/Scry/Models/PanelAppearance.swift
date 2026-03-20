@@ -70,17 +70,3 @@ enum AIProviderType: String, CaseIterable, Codable {
         }
     }
 }
-
-enum MenuBarIconStyle: String, CaseIterable, Codable {
-    case magnifyingGlass
-    case spark
-    case text
-
-    var symbolName: String {
-        switch self {
-        case .magnifyingGlass: return "magnifyingglass"
-        case .spark: return "sparkle.magnifyingglass"
-        case .text: return "character.cursor.ibeam"
-        }
-    }
-}

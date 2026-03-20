@@ -102,7 +102,7 @@ struct OnboardingView: View {
 
     /// Show the Globe key step only when Globe is the active modifier and the system action conflicts.
     private var showGlobeStep: Bool {
-        settings.doubleTapEnabled && settings.doubleTapModifier == .globe
+        settings.hotkey.isGlobeTap
     }
 
     @ViewBuilder

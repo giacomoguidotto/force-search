@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // services to avoid blocking (CGEvent taps, Sparkle, windows, etc.)
     guard ProcessInfo.processInfo.environment["SCRY_TESTING"] != "1" else { return }
 
+    // Load XDG config (or migrate from UserDefaults on first run)
+    ConfigFileService.shared.loadAndMigrate()
+
     // Show onboarding if first run (user grants permissions from there)
     if !settings.hasCompletedOnboarding {
       onboardingController.show()
@@ -144,9 +147,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.performSearch(at: nil)
       }
       .store(in: &cancellables)
-    if settings.hotKeyEnabled {
-      hotKeyService?.register(keyCombo: settings.hotKey)
-    }
 
     // Double-tap modifier service
     doubleTapService = DoubleTapService()
@@ -156,60 +156,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.performSearch(at: nil)
       }
       .store(in: &cancellables)
-    if settings.doubleTapEnabled {
-      doubleTapService?.start(modifier: settings.doubleTapModifier)
+
+    // Activate current hotkey
+    activateHotkey(settings.hotkey)
+  }
+
+  private func activateHotkey(_ hk: Hotkey) {
+    hotKeyService?.unregister()
+    doubleTapService?.stop()
+
+    switch hk {
+    case .modifierTap(let mod):
+      let singleTap: Bool
+      if mod == .globe {
+        singleTap = !PermissionsService.shared.globeKeyConflict
+      } else {
+        singleTap = true
+      }
+      doubleTapService?.start(modifier: mod, singleTap: singleTap)
+    case .modifierDoubleTap(let mod):
+      doubleTapService?.start(modifier: mod, singleTap: false)
+    case .keyCombo(let combo):
+      hotKeyService?.register(keyCombo: combo)
+    case .none:
+      break
     }
   }
 
   private func observeSettings() {
-    // Re-register hotkey when it changes
-    settings.$hotKey
+    // React to unified hotkey changes
+    settings.$hotkey
       .dropFirst()
-      .sink { [weak self] newKey in
-        guard let self = self else { return }
-        if self.settings.hotKeyEnabled {
-          self.hotKeyService?.register(keyCombo: newKey)
-        }
-      }
-      .store(in: &cancellables)
-
-    // Enable/disable hotkey
-    settings.$hotKeyEnabled
-      .dropFirst()
-      .sink { [weak self] enabled in
-        guard let self = self else { return }
-        if enabled {
-          self.hotKeyService?.register(keyCombo: self.settings.hotKey)
-        } else {
-          self.hotKeyService?.unregister()
-        }
-      }
-      .store(in: &cancellables)
-
-    // Enable/disable double-tap modifier
-    settings.$doubleTapEnabled
-      .dropFirst()
-      .sink { [weak self] enabled in
-        guard let self = self else { return }
-        if enabled {
-          self.doubleTapService?.start(modifier: self.settings.doubleTapModifier)
-        } else {
-          self.doubleTapService?.stop()
-        }
-      }
-      .store(in: &cancellables)
-
-    // Restart double-tap when modifier choice changes
-    settings.$doubleTapModifier
-      .dropFirst()
-      .sink { [weak self] modifier in
-        guard let self = self, self.settings.doubleTapEnabled else { return }
-        self.doubleTapService?.start(modifier: modifier)
+      .sink { [weak self] newHotkey in
+        self?.activateHotkey(newHotkey)
       }
       .store(in: &cancellables)
 
     // Enable/disable event tap based on force click setting
-    settings.$forceClickEnabled
+    settings.$forceClick
       .dropFirst()
       .sink { [weak self] enabled in
         if enabled {
@@ -226,7 +210,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       .dropFirst()
       .sink { [weak self] granted in
         guard let self = self else { return }
-        if granted, self.settings.forceClickEnabled {
+        if granted, self.settings.forceClick {
           self.eventTapService?.restart()
         }
       }

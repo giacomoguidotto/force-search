@@ -35,10 +35,14 @@ final class DoubleTapService {
     /// Whether the modifier key is currently held down.
     private var isKeyDown = false
 
-    func start(modifier: DoubleTapModifier) {
+    func start(modifier: DoubleTapModifier, singleTap: Bool? = nil) {
         stop()
         self.modifier = modifier
-        self.singleTapMode = modifier == .globe && !PermissionsService.shared.globeKeyConflict
+        if let explicit = singleTap {
+            self.singleTapMode = explicit
+        } else {
+            self.singleTapMode = modifier == .globe && !PermissionsService.shared.globeKeyConflict
+        }
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
