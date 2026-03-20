@@ -58,11 +58,11 @@ struct ShortcutsPreferencesView: View {
                 shortcutRow(hotkeyDisplayLabel, "Scry hotkey")
                 shortcutRow("Force Click", "Hold-click on selected text")
                 shortcutRow("\u{238B}", "Close panel")
-                shortcutRow("\u{2318}1\u{2013}9", "Switch provider tabs")
-                shortcutRow("\u{2318}\u{21A9}", "Open in browser")
-                shortcutRow("\u{2318}C", "Copy URL")
-                shortcutRow("\u{2318},", "Preferences")
-                shortcutRow("\u{2318}\u{232B}", "Clear search")
+                shortcutRow("\u{2318} 1\u{2013}9", "Switch provider tabs")
+                shortcutRow("\u{2318} \u{21A9}", "Open in browser")
+                shortcutRow("\u{2318} C", "Copy URL")
+                shortcutRow("\u{2318} ,", "Preferences")
+                shortcutRow("\u{2318} \u{232B}", "Clear search")
                 shortcutRow("\u{21A9}", "Search")
             }
         }
