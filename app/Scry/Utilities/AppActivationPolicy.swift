@@ -4,7 +4,7 @@ import AppKit
 /// Dock only while a standard window (Preferences, Onboarding) is open.
 enum AppActivationPolicy {
     /// Titles of windows that should keep the app in Cmd+Tab.
-    private static let managedTitles: Set<String> = ["Scry Preferences", "Scry Setup"]
+    private static let managedTitles: Set<String> = ["Scry Preferences"]
 
     /// Call after any managed window closes. Switches back to `.accessory`
     /// (menu-bar-only) when no managed windows remain visible.
