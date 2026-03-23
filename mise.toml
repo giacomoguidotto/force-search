@@ -1,0 +1,5 @@
+[tools]
+bun = "latest"
+node = "lts"
+xcodegen = "latest"
+swiftlint = "latest"
