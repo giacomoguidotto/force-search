@@ -88,11 +88,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
 
+    // Capture frontmost app NOW, before any UI work changes focus
+    let frontApp = NSWorkspace.shared.frontmostApplication
+
     // Instant visual feedback before async work begins
     RippleOverlay.show(at: position)
 
     Task { @MainActor in
-      let query = await textExtractorService?.extractText(at: position)
+      let query = await textExtractorService?.extractText(at: position, frontApp: frontApp)
 
       let effectiveQuery: String
       if let query = query, !query.isEmpty {

@@ -24,15 +24,8 @@ final class TextExtractorService {
     }
 
     /// Snapshots the current selection at mouse-down time (before force-click
-    /// auto-selects text). Tries AX first, then clipboard simulation for browsers.
+    /// auto-selects text). Called on every mouse-down while the event tap is active.
     func snapshotSelection() {
-        // Try AX selected text (fast, works for native apps).
-        // Clipboard simulation (Cmd+C) is intentionally NOT used here because
-        // snapshotSelection runs on every mouse-down system-wide, and injecting
-        // synthetic key events on every click disrupts other apps (e.g. the
-        // screenshot tool receives a spurious Cmd+C that cancels the capture).
-        // Clipboard-based extraction is deferred to extractText() which only
-        // runs when a search is actually triggered.
         if let text = extractViaAccessibility(), !text.isEmpty {
             preGestureSelection = text
             debugLog.log("TextExtractor", "Snapshot: got selection via AX", level: .debug)
@@ -41,14 +34,14 @@ final class TextExtractorService {
     }
 
     /// Async extraction pipeline: pre-gesture selection → word under cursor → Screenshot + OCR.
-    func extractText(at point: NSPoint? = nil) async -> String? {
+    func extractText(at point: NSPoint? = nil, frontApp: NSRunningApplication? = nil) async -> String? {
         let cursorPoint = point ?? NSEvent.mouseLocation
 
         // Use pre-gesture selection (force-click) or grab it now (hotkey/double-tap)
         var savedSelection = preGestureSelection
         preGestureSelection = nil
         if savedSelection == nil {
-            savedSelection = extractViaAccessibility()
+            savedSelection = extractViaAccessibility(frontApp: frontApp)
         }
         if let text = savedSelection, !text.isEmpty {
             debugLog.log("TextExtractor", "Got text via selection", level: .debug)
@@ -111,21 +104,22 @@ final class TextExtractorService {
 
     // MARK: - Accessibility
 
-    private func extractViaAccessibility() -> String? {
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
+    private func extractViaAccessibility(frontApp: NSRunningApplication? = nil) -> String? {
+        let app = frontApp ?? NSWorkspace.shared.frontmostApplication
+        guard let app = app else {
             debugLog.log("TextExtractor", "AX: no frontmost app", level: .debug)
             return nil
         }
 
-        let bundleID = frontApp.bundleIdentifier ?? "unknown"
-        debugLog.log("TextExtractor", "AX: frontmost app = \(bundleID) (pid \(frontApp.processIdentifier))", level: .debug)
+        let bundleID = app.bundleIdentifier ?? "unknown"
+        debugLog.log("TextExtractor", "AX: frontmost app = \(bundleID) (pid \(app.processIdentifier))", level: .debug)
 
-        if frontApp.bundleIdentifier == Bundle.main.bundleIdentifier {
+        if app.bundleIdentifier == Bundle.main.bundleIdentifier {
             debugLog.log("TextExtractor", "AX: frontmost is Scry, skipping", level: .debug)
             return nil
         }
 
-        let appElement = AXUIElementCreateApplication(frontApp.processIdentifier)
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
 
         var focusedValue: AnyObject?
         let focusResult = AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedValue)
