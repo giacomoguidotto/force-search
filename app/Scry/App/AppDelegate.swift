@@ -27,19 +27,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Load XDG config (or migrate from UserDefaults on first run)
     ConfigFileService.shared.loadAndMigrate()
 
-    // Show onboarding if first run (user grants permissions from there)
-    if !settings.hasCompletedOnboarding {
-      onboardingController.show()
-    }
-
     // Start Sparkle updater
     _ = UpdaterService.shared
 
-    // Initialize services
-    setupServices()
-
-    // Watch for settings changes
-    observeSettings()
+    if settings.hasCompletedOnboarding {
+      setupServices()
+      observeSettings()
+    } else {
+      // Defer services until onboarding reaches step 4 (permissions granted)
+      observeSettings()
+      onboardingController.onServicesNeeded = { [weak self] in
+        self?.setupServices()
+      }
+      onboardingController.show()
+    }
   }
 
   func applicationWillTerminate(_ notification: Notification) {
@@ -67,6 +68,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func performSearch(at point: NSPoint?) {
+    // If onboarding step 4 is active, dismiss it and proceed with search
+    if !settings.hasCompletedOnboarding && onboardingController.isOnStepFour {
+      onboardingController.dismissForSearch()
+    }
+
     let debugLog = DebugLogStore.shared
     debugLog.log("Search", "performSearch called", level: .debug)
 

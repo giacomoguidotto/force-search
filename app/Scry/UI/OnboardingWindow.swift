@@ -1,221 +1,623 @@
+import AppKit
+import Combine
 import SwiftUI
 
-struct OnboardingView: View {
-    @ObservedObject var permissions = PermissionsService.shared
-    @ObservedObject var settings = AppSettings.shared
-    var onComplete: () -> Void
+enum OnboardingStep: Int, CaseIterable {
+    case welcome = 0
+    case triggers = 1
+    case permissions = 2
+    case ready = 3
+}
+
+extension Notification.Name {
+    static let onboardingCompleted = Notification.Name("onboardingCompleted")
+}
+
+final class OnboardingViewModel: ObservableObject {
+    @Published var currentStep: OnboardingStep = .welcome
+
+    let permissions = PermissionsService.shared
+    let settings = AppSettings.shared
+
+    func nextStep() {
+        guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
+            currentStep = next
+        }
+    }
+
+    func completeOnboarding() {
+        settings.hasCompletedOnboarding = true
+        permissions.stopPolling()
+        NotificationCenter.default.post(name: .onboardingCompleted, object: nil)
+    }
+}
+
+// MARK: - Panel
+
+final class OnboardingPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
+
+    init(size: NSSize) {
+        super.init(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+
+        level = .normal
+        isFloatingPanel = false
+        hidesOnDeactivate = false
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = true
+        isMovableByWindowBackground = true
+        animationBehavior = .utilityWindow
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        appearance = ScryTheme.darkAppearance
+
+        let container = NSView(frame: contentRect(forFrameRect: frame))
+        container.wantsLayer = true
+        container.layer?.cornerRadius = 16
+        container.layer?.cornerCurve = .continuous
+        container.layer?.masksToBounds = true
+
+        let visualEffect = NSVisualEffectView(frame: container.bounds)
+        visualEffect.material = .hudWindow
+        visualEffect.state = .active
+        visualEffect.blendingMode = .behindWindow
+        visualEffect.autoresizingMask = [.width, .height]
+        container.addSubview(visualEffect)
+
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = ScryTheme.Colors.panelBorder.cgColor
+
+        contentView = container
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        // Block Escape — force completion
+    }
+
+    override func performClose(_ sender: Any?) {
+        // Block close
+    }
+}
+
+// MARK: - Content
+
+struct OnboardingContentView: View {
+    @ObservedObject var viewModel: OnboardingViewModel
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            VStack(spacing: 8) {
-                Image("ScryIcon")
-                    .resizable()
-                    .interpolation(.high)
-                    .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                Text(settings.hasCompletedOnboarding ? "Scry" : "Welcome to Scry")
-                    .font(.title.bold())
-                Text(settings.hasCompletedOnboarding
-                     ? "A permission needs your attention"
-                     : "Just a few steps to unlock instant search")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            ZStack {
+                WelcomeStepView(viewModel: viewModel)
+                    .opacity(viewModel.currentStep == .welcome ? 1 : 0)
+                    .offset(x: stepOffset(for: .welcome))
+
+                TriggersStepView(viewModel: viewModel)
+                    .opacity(viewModel.currentStep == .triggers ? 1 : 0)
+                    .offset(x: stepOffset(for: .triggers))
+
+                PermissionsStepView(viewModel: viewModel)
+                    .opacity(viewModel.currentStep == .permissions ? 1 : 0)
+                    .offset(x: stepOffset(for: .permissions))
+
+                ReadyStepView(viewModel: viewModel)
+                    .opacity(viewModel.currentStep == .ready ? 1 : 0)
+                    .offset(x: stepOffset(for: .ready))
             }
-            .padding(.top, 32)
-            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.spring(response: 0.45, dampingFraction: 0.88), value: viewModel.currentStep)
 
-            Divider()
+            StepIndicatorView(current: viewModel.currentStep)
+                .padding(.bottom, 24)
+        }
+        .frame(width: 600, height: 500)
+    }
 
-            // Steps
-            VStack(alignment: .leading, spacing: 20) {
-                permissionStep(
-                    number: 1,
-                    title: "Disable Look Up",
-                    description: "macOS Look Up uses force-click by default, which conflicts with Scry. Change it to three-finger tap or disable it.",
-                    granted: !permissions.lookUpConflictDetected,
-                    buttonLabel: "Open Trackpad Settings",
-                    resolvedLabel: "No conflict",
-                    action: { permissions.openTrackpadSettings() }
-                )
+    private func stepOffset(for step: OnboardingStep) -> CGFloat {
+        let delta = step.rawValue - viewModel.currentStep.rawValue
+        return CGFloat(delta) * 40
+    }
+}
 
-                if showGlobeStep {
-                    permissionStep(
-                        number: 2,
-                        title: "Globe Key",
-                        // swiftlint:disable:next line_length
-                        description: "The Globe key triggers Emoji or Input Source by default. Set \u{201C}Press Globe key\u{201D} to \u{201C}Do Nothing\u{201D} in System Settings \u{2192} Keyboard so Scry can use it.",
-                        granted: !permissions.globeKeyConflict,
-                        buttonLabel: "Open Keyboard Settings",
-                        resolvedLabel: "Ready",
-                        action: { permissions.openKeyboardSettings() }
-                    )
-                }
+struct StepIndicatorView: View {
+    let current: OnboardingStep
 
-                permissionStep(
-                    number: showGlobeStep ? 3 : 2,
-                    title: "Accessibility Access",
-                    description: "Required to read selected text and detect force-click gestures.",
-                    granted: permissions.accessibilityGranted,
-                    action: { permissions.requestAccessibility() }
-                )
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(OnboardingStep.allCases, id: \.rawValue) { step in
+                Capsule()
+                    .fill(color(for: step))
+                    .frame(width: step == current ? 24 : 8, height: 8)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: current)
             }
-            .padding(24)
+        }
+    }
+
+    private func color(for step: OnboardingStep) -> Color {
+        if step == current { return ScryTheme.Colors.accentColor }
+        if step.rawValue < current.rawValue { return ScryTheme.Colors.accentColor.opacity(0.4) }
+        return Color.white.opacity(0.15)
+    }
+}
+
+struct OnboardingButton: View {
+    let title: String
+    var disabled: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(disabled ? ScryTheme.Colors.textTertiaryColor : .black)
+                .frame(width: 220)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(disabled
+                              ? ScryTheme.Colors.accentColor.opacity(0.3)
+                              : ScryTheme.Colors.accentColor)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+}
+
+struct WelcomeStepView: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
+            Image("ScryIcon")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 96, height: 96)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: ScryTheme.Colors.accentColor.opacity(0.25), radius: 24, y: 4)
+
+            Text("Welcome to Scry")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+
+            Text("Instant search for anything on your screen.\nHighlight text, trigger Scry, get answers.")
+                .font(.system(size: 15))
+                .foregroundColor(ScryTheme.Colors.textSecondaryColor)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
 
             Spacer()
 
-            // Note
-            if !permissions.allPermissionsGranted {
-                Text("You may need to restart Scry after granting permissions.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.bottom, 8)
+            OnboardingButton(title: "Get Started") { viewModel.nextStep() }
+
+            Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+                .font(.caption)
+                .foregroundColor(ScryTheme.Colors.textTertiaryColor)
+                .padding(.top, 4)
+
+            Spacer().frame(height: 8)
+        }
+        .padding(.horizontal, 48)
+    }
+}
+
+struct TriggersStepView: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+    @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var permissions = PermissionsService.shared
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("How do you want to trigger Scry?")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+                .padding(.top, 32)
+
+            Text("You can use one or both methods.")
+                .font(.system(size: 14))
+                .foregroundColor(ScryTheme.Colors.textSecondaryColor)
+
+            HStack(spacing: 16) {
+                forceClickCard
+                hotkeyCard
+            }
+            .padding(.horizontal, 32)
+
+            Spacer()
+
+            OnboardingButton(title: "Continue") { viewModel.nextStep() }
+                .padding(.bottom, 8)
+        }
+    }
+
+    // MARK: Force Click Card
+
+    private var forceClickCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "hand.tap")
+                    .font(.system(size: 20))
+                    .foregroundColor(ScryTheme.Colors.accentColor)
+                Spacer()
+                Toggle("", isOn: $settings.forceClick)
+                    .toggleStyle(.switch)
+                    .tint(ScryTheme.Colors.accentColor)
+                    .labelsHidden()
+                    .controlSize(.small)
             }
 
-            // Primary action button — only available when all permissions are granted
-            if permissions.allPermissionsGranted {
-                Button {
-                    settings.hasCompletedOnboarding = true
-                    onComplete()
-                } label: {
-                    Text("Get Started")
-                        .frame(maxWidth: .infinity)
+            Text("Force Click")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+
+            Text("Hold-click on selected text")
+                .font(.system(size: 12))
+                .foregroundColor(ScryTheme.Colors.textSecondaryColor)
+
+            if settings.forceClick && permissions.lookUpConflictDetected {
+                conflictBanner(
+                    text: "Look Up uses force-click. Change it to three-finger tap.",
+                    action: "Trackpad Settings",
+                    handler: { permissions.openTrackpadSettings() }
+                )
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08))
+                )
+        )
+    }
+
+    // MARK: Hotkey Card
+
+    @State private var hotkeyEnabled: Bool = true
+    @State private var savedHotkey: Hotkey = .modifierTap(.globe)
+
+    private var hotkeyCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "keyboard")
+                    .font(.system(size: 20))
+                    .foregroundColor(ScryTheme.Colors.accentColor)
+                Spacer()
+                Toggle("", isOn: $hotkeyEnabled)
+                    .toggleStyle(.switch)
+                    .tint(ScryTheme.Colors.accentColor)
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .onChange(of: hotkeyEnabled) { enabled in
+                        if enabled {
+                            settings.hotkey = savedHotkey
+                        } else {
+                            savedHotkey = settings.hotkey
+                            settings.hotkey = .none
+                        }
+                    }
+            }
+
+            Text("Hotkey")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+
+            Text("Press anywhere to search")
+                .font(.system(size: 12))
+                .foregroundColor(ScryTheme.Colors.textSecondaryColor)
+
+            if hotkeyEnabled {
+                UnifiedHotKeyRecorderView(hotkey: $settings.hotkey)
+                    .frame(height: 28)
+
+                if settings.hotkey.isGlobeTap && permissions.globeKeyConflict {
+                    conflictBanner(
+                        text: "Globe key has a system action. Set it to \u{201C}Do Nothing\u{201D}.",
+                        action: "Keyboard Settings",
+                        handler: { permissions.openKeyboardSettings() }
+                    )
                 }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08))
+                )
+        )
+    }
+
+    // MARK: Conflict Banner
+
+    private func conflictBanner(
+        text: String,
+        action: String,
+        handler: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                Text(text)
+                    .font(.system(size: 11))
+                    .foregroundColor(.orange.opacity(0.9))
+            }
+            Button(action) { handler() }
+                .font(.system(size: 11, weight: .medium))
+                .controlSize(.mini)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.orange.opacity(0.08))
+        )
+    }
+}
+
+struct PermissionsStepView: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+    @ObservedObject private var permissions = PermissionsService.shared
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Image(systemName: permissions.accessibilityGranted ? "checkmark.shield.fill" : "lock.shield")
+                .font(.system(size: 56))
+                .foregroundColor(
+                    permissions.accessibilityGranted
+                        ? ScryTheme.Colors.accentColor
+                        : ScryTheme.Colors.textSecondaryColor
+                )
+                .animation(.spring(response: 0.4), value: permissions.accessibilityGranted)
+
+            Text("Accessibility Permission")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+
+            Text("Scry needs Accessibility access to read selected\ntext and detect your trigger gestures.")
+                .font(.system(size: 14))
+                .foregroundColor(ScryTheme.Colors.textSecondaryColor)
+                .multilineTextAlignment(.center)
+
+            if permissions.accessibilityGranted {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(ScryTheme.Colors.accentColor)
+                    Text("Permission Granted")
+                        .foregroundColor(ScryTheme.Colors.accentColor)
+                        .fontWeight(.medium)
+                }
+                .transition(.scale.combined(with: .opacity))
+            } else {
+                OnboardingButton(title: "Grant Permission") {
+                    permissions.requestAccessibility()
+                }
+            }
+
+            Spacer()
+
+            if permissions.accessibilityGranted {
+                OnboardingButton(title: "Continue") {
+                    viewModel.nextStep()
+                }
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .frame(width: 420, height: 580)
+        .padding(.horizontal, 48)
         .onAppear {
-            permissions.checkAll()
             permissions.startPolling()
         }
         .onDisappear {
             permissions.stopPolling()
         }
     }
+}
 
-    /// Show the Globe key step only when Globe is the active modifier and the system action conflicts.
-    private var showGlobeStep: Bool {
-        settings.hotkey.isGlobeTap
+struct ReadyStepView: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+    @ObservedObject private var settings = AppSettings.shared
+    @State private var pulseOpacity: Double = 0.4
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Image(systemName: "sparkles")
+                .font(.system(size: 48))
+                .foregroundColor(ScryTheme.Colors.accentColor)
+
+            Text("You\u{2019}re All Set!")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+
+            VStack(spacing: 12) {
+                if settings.forceClick {
+                    triggerRow(
+                        icon: "hand.tap",
+                        label: "Force Click",
+                        detail: "Hold-click on any selected text"
+                    )
+                }
+                if settings.hotkey != .none {
+                    triggerRow(
+                        icon: "keyboard",
+                        label: settings.hotkey.displayString,
+                        detail: "Press anywhere to search"
+                    )
+                }
+            }
+            .padding(.horizontal, 48)
+
+            Spacer()
+
+            Text("Try it now \u{2014} trigger Scry to begin")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(ScryTheme.Colors.textSecondaryColor)
+                .opacity(pulseOpacity)
+                .animation(
+                    .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
+                    value: pulseOpacity
+                )
+                .onAppear { pulseOpacity = 1.0 }
+
+            Button("or press here to finish") {
+                viewModel.completeOnboarding()
+            }
+            .font(.system(size: 12))
+            .foregroundColor(ScryTheme.Colors.textTertiaryColor)
+            .buttonStyle(.plain)
+            .padding(.bottom, 8)
+        }
     }
 
-    @ViewBuilder
-    private func permissionStep(
-        number: Int,
-        title: String,
-        description: String,
-        granted: Bool,
-        buttonLabel: String = "Grant Permission",
-        resolvedLabel: String = "Granted",
-        action: @escaping () -> Void
-    ) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(granted ? Color.green : Color.secondary.opacity(0.2))
-                    .frame(width: 32, height: 32)
-                if granted {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                } else {
-                    Text("\(number)")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.primary)
-                }
+    private func triggerRow(icon: String, label: String, detail: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(ScryTheme.Colors.accentColor)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundColor(ScryTheme.Colors.textSecondaryColor)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-
-                if !granted {
-                    Button(buttonLabel) {
-                        action()
-                    }
-                    .controlSize(.small)
-                    .padding(.top, 4)
-                } else {
-                    Text(resolvedLabel)
-                        .font(.caption)
-                        .foregroundColor(.green)
-                        .padding(.top, 4)
-                }
-            }
+            Spacer()
         }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+        )
     }
 }
 
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
-    private var window: NSWindow?
-    private var keyMonitor: Any?
+    private var panel: OnboardingPanel?
+    private var viewModel: OnboardingViewModel?
+    private var cancellables = Set<AnyCancellable>()
 
-    func showIfNeeded() {
-        guard !AppSettings.shared.hasCompletedOnboarding else { return }
-        show()
+    /// Called once when onboarding reaches step 4 (services needed for trigger demo).
+    var onServicesNeeded: (() -> Void)?
+    private var servicesStarted = false
+
+    var isOnStepFour: Bool {
+        viewModel?.currentStep == .ready
     }
 
     func show() {
-        if let existing = window {
+        if let existing = panel, existing.isVisible {
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
-        let onboardingView = OnboardingView {
-            self.window?.close()
+        let vm = OnboardingViewModel()
+        self.viewModel = vm
+
+        let content = OnboardingContentView(viewModel: vm)
+        let hostingView = NSHostingView(rootView: content)
+        hostingView.frame = NSRect(origin: .zero, size: NSSize(width: 600, height: 500))
+
+        let onboardingPanel = OnboardingPanel(size: NSSize(width: 600, height: 500))
+
+        // Add hosting view inside the container (which has the frosted glass)
+        if let container = onboardingPanel.contentView {
+            hostingView.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(hostingView)
+            NSLayoutConstraint.activate([
+                hostingView.topAnchor.constraint(equalTo: container.topAnchor),
+                hostingView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                hostingView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                hostingView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            ])
         }
 
-        let hostingView = NSHostingView(rootView: onboardingView)
-        let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 580),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        win.contentView = hostingView
-        win.title = "Scry Setup"
-        win.center()
-        win.isReleasedWhenClosed = false
-        win.delegate = self
-        win.makeKeyAndOrderFront(nil)
+        onboardingPanel.center()
+        onboardingPanel.delegate = self
+        onboardingPanel.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
 
-        self.window = win
-        startKeyMonitor()
+        self.panel = onboardingPanel
+
+        // Start services when reaching step 4 (trigger demo needs them)
+        vm.$currentStep
+            .filter { $0 == .ready }
+            .first()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self, !self.servicesStarted else { return }
+                self.servicesStarted = true
+                self.onServicesNeeded?()
+            }
+            .store(in: &cancellables)
+
+        // Listen for completion (from "press here to finish" button or trigger)
+        NotificationCenter.default.publisher(for: .onboardingCompleted)
+            .first()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.dismissAnimated()
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Called by AppDelegate when the user triggers a search on step 4.
+    func dismissForSearch() {
+        viewModel?.completeOnboarding()
+    }
+
+    private func dismissAnimated() {
+        guard let panel = panel else { return }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.4
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            panel.orderOut(nil)
+            self?.panel = nil
+            self?.viewModel = nil
+            self?.cancellables.removeAll()
+            AppActivationPolicy.updatePolicy()
+        })
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        false
     }
 
     func windowWillClose(_ notification: Notification) {
-        stopKeyMonitor()
-        window = nil
+        panel = nil
+        viewModel = nil
+        cancellables.removeAll()
         AppActivationPolicy.updatePolicy()
-    }
-
-    private func startKeyMonitor() {
-        stopKeyMonitor()
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if flags == .command, event.keyCode == 43 { // kVK_ANSI_Comma
-                AppDelegate.shared?.showPreferences()
-                return nil
-            }
-            return event
-        }
-    }
-
-    private func stopKeyMonitor() {
-        if let monitor = keyMonitor {
-            NSEvent.removeMonitor(monitor)
-            keyMonitor = nil
-        }
     }
 }
