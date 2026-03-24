@@ -16,22 +16,30 @@ final class PermissionsService: ObservableObject {
         accessibilityGranted
     }
 
+    /// Fast poll (0.3s) for onboarding, slow poll (10s) for background monitoring.
     private var pollTimer: Timer?
+    private var backgroundTimer: Timer?
 
     private init() {
         checkAll()
-        // Listen for accessibility TCC changes (no polling needed)
+
+        // Distributed notification: unreliable but free — use as a bonus signal.
+        // Add a 200ms delay before checking (Hammerspoon pattern: TCC DB update
+        // lags behind the notification).
         DistributedNotificationCenter.default().addObserver(
             self,
             selector: #selector(accessibilityChanged),
             name: NSNotification.Name("com.apple.accessibility.api"),
             object: nil
         )
+
+        // Background poll: catch revocation and delayed grants during normal use.
+        startBackgroundPolling()
     }
 
     @objc private func accessibilityChanged() {
-        DispatchQueue.main.async { [weak self] in
-            self?.accessibilityGranted = self?.checkAccessibility() ?? false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.checkAll()
         }
     }
 
@@ -50,7 +58,6 @@ final class PermissionsService: ObservableObject {
     }
 
     /// Prompts for Accessibility access via the system dialog.
-    /// Does NOT open System Settings — the system dialog has its own "Open System Settings" button.
     func requestAccessibility() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
@@ -58,29 +65,36 @@ final class PermissionsService: ObservableObject {
 
     /// Opens System Settings → Trackpad so the user can change Look Up gesture.
     func openTrackpadSettings() {
+        // swiftlint:disable:next force_unwrapping
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Trackpad-Settings.extension")!)
     }
 
     /// Prompts for Screen Recording access and opens the Settings pane.
     func requestScreenRecording() {
-        // Register the app in the list (first call shows system prompt on macOS 15+)
         CGRequestScreenCaptureAccess()
+        // swiftlint:disable:next force_unwrapping
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
     }
 
     /// Prompts for Input Monitoring access and opens the Settings pane.
     func requestInputMonitoring() {
-        // Register the app in the list (first call shows system prompt)
         CGRequestListenEventAccess()
-        // Open the pane directly so the user can find & toggle the app
+        // swiftlint:disable:next force_unwrapping
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
     }
 
-    /// Start polling permissions every 2 seconds (for onboarding flow).
+    /// Opens System Settings → Keyboard so the user can change Globe key behavior.
+    func openKeyboardSettings() {
+        // swiftlint:disable:next force_unwrapping
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
+    }
+
+    // MARK: - Polling
+
+    /// Fast poll (0.3s) for onboarding/permissions UI — matches Rectangle's approach.
     func startPolling() {
         stopPolling()
-        // Use .common mode so the timer fires even during modal/tracking run-loop modes.
-        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.3, repeats: true) { [weak self] _ in
             self?.checkAll()
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -92,23 +106,33 @@ final class PermissionsService: ObservableObject {
         pollTimer = nil
     }
 
-    // MARK: - Private
+    /// Slow background poll (10s) to catch permission revocation during normal use.
+    private func startBackgroundPolling() {
+        backgroundTimer?.invalidate()
+        let timer = Timer(timeInterval: 10.0, repeats: true) { [weak self] _ in
+            self?.accessibilityGranted = self?.checkAccessibility() ?? false
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        backgroundTimer = timer
+    }
 
-    /// Checks accessibility permission. Probes the AX API directly for
-    /// real-time detection, but requires AXIsProcessTrusted() to also be
-    /// true (filters out Xcode-inherited permissions).
+    // MARK: - Private Checks
+
+    /// Dual-check: AXIsProcessTrusted() queries TCC daemon, then probe the AX API
+    /// to catch race conditions where TCC reports true but the API is actually disabled
+    /// (documented on macOS Ventura with rapid toggles).
     private func checkAccessibility() -> Bool {
         guard AXIsProcessTrusted() else { return false }
         let systemWide = AXUIElementCreateSystemWide()
         var value: AnyObject?
-        let result = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &value)
+        let result = AXUIElementCopyAttributeValue(
+            systemWide, kAXFocusedApplicationAttribute as CFString, &value)
         return result == .success || result == .noValue
     }
 
-    /// CGPreflightListenEventAccess() caches its result for the process
-    /// lifetime. Instead, attempt to create a default-mode event tap which
-    /// requires Input Monitoring permission. If the tap is created
-    /// successfully we immediately disable and release it.
+    /// Attempt to create a CGEvent tap — requires Input Monitoring permission.
+    /// CGPreflightListenEventAccess() caches its result per-process, so we
+    /// probe directly instead.
     private func checkInputMonitoring() -> Bool {
         let tap = CGEvent.tapCreate(
             tap: .cghidEventTap,
@@ -125,9 +149,8 @@ final class PermissionsService: ObservableObject {
         return false
     }
 
-    /// Checks screen recording permission via SCShareableContent which performs
-    /// a fresh TCC lookup on every call (unlike CGPreflightScreenCaptureAccess
-    /// which caches the result for the process lifetime).
+    /// Fresh TCC lookup via SCShareableContent (unlike CGPreflightScreenCaptureAccess
+    /// which caches per-process).
     private func checkScreenRecordingAsync() {
         SCShareableContent.getExcludingDesktopWindows(true, onScreenWindowsOnly: false) { [weak self] content, error in
             let granted = error == nil && content != nil
@@ -137,28 +160,19 @@ final class PermissionsService: ObservableObject {
         }
     }
 
-    /// Opens System Settings → Keyboard so the user can change Globe key behavior.
-    func openKeyboardSettings() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension")!)
-    }
-
-    /// Returns true when the Globe key is configured to trigger a system action
-    /// (emoji picker or input source switch), which interferes with double-tap detection.
-    /// AppleFnUsageType: 0 = Do Nothing, 1 = Change Input Source, 2 = Show Emoji (default).
+    /// Globe key conflict: AppleFnUsageType 0 = Do Nothing (no conflict),
+    /// 1 = Change Input Source, 2 = Show Emoji (default).
     private func checkGlobeKeyConflict() -> Bool {
         guard let defaults = UserDefaults(suiteName: "com.apple.HIToolbox") else { return true }
         let usageType = defaults.integer(forKey: "AppleFnUsageType")
-        // 0 means "Do Nothing" — no conflict
         return usageType != 0
     }
 
-    /// Returns true when macOS Look Up is set to fire on force-click, which conflicts with Scry.
+    /// Look Up conflict: fires on force-click when three-finger tap is not configured.
     private func checkLookUpConflict() -> Bool {
         let trackpadDefaults = UserDefaults(suiteName: "com.apple.AppleMultitouchTrackpad")
         let threeFingerTap = trackpadDefaults?.integer(forKey: "TrackpadThreeFingerTapGesture") ?? 0
         let forceClickEnabled = UserDefaults.standard.bool(forKey: "com.apple.trackpad.forceClick")
-
-        // Conflict: force click is enabled AND Look Up uses force-click (three-finger tap gesture == 0)
         return forceClickEnabled && threeFingerTap == 0
     }
 }
