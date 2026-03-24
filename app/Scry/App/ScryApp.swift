@@ -7,8 +7,7 @@ struct ScryApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuBarView(
-                onShowPreferences: { appDelegate.showPreferences() },
-                onShowOnboarding: { appDelegate.showOnboarding() }
+                onShowPreferences: { appDelegate.showPreferences() }
             )
         } label: {
             Image("MenuBarIcon")

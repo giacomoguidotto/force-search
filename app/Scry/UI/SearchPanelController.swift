@@ -62,7 +62,11 @@ final class SearchPanelController: NSObject {
 
         // Load search or show hint for empty query
         if query.isEmpty {
-            showPlaceholder("Grant Screen Recording to enable text detection under cursor.", showGrant: true)
+            showPlaceholder(
+                "Grant Screen Recording to enable text detection under cursor.",
+                showGrant: true,
+                grantHandler: { PermissionsService.shared.requestScreenRecording() }
+            )
         } else {
             performSearch()
         }
@@ -71,6 +75,31 @@ final class SearchPanelController: NSObject {
         startClickOutsideMonitor()
 
         // Listen for keyboard events
+        startKeyMonitor()
+    }
+
+    func showAccessibilityPrompt(at point: NSPoint) {
+        currentQuery = ""
+        cursorPoint = point
+        currentProviders = registry.enabledProviders()
+        guard !currentProviders.isEmpty else { return }
+
+        selectedProviderIndex = 0
+        if panel == nil { createPanel() }
+
+        searchBar.query = ""
+        tabBar.configure(providers: currentProviders, selectedIndex: selectedProviderIndex)
+
+        let panelFrame = calculateFrame(near: point)
+        panel?.setFrame(panelFrame, display: false)
+        showWithAnimation()
+
+        showPlaceholder(
+            "Accessibility permission required to read text.",
+            showGrant: true,
+            grantHandler: { PermissionsService.shared.requestAccessibility() }
+        )
+        startClickOutsideMonitor()
         startKeyMonitor()
     }
 
@@ -125,7 +154,7 @@ final class SearchPanelController: NSObject {
         placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         contentContainer.addSubview(placeholderLabel)
 
-        grantButton = NSButton(title: "Grant", target: self, action: #selector(grantScreenRecording))
+        grantButton = NSButton(title: "Grant", target: self, action: #selector(handleGrant))
         grantButton.bezelStyle = .rounded
         grantButton.controlSize = .regular
         grantButton.isHidden = true
@@ -199,8 +228,9 @@ final class SearchPanelController: NSObject {
         ])
     }
 
-    private func showPlaceholder(_ text: String, showGrant: Bool = false) {
-        // Hide any previous search results so they don't show behind the placeholder
+    private var grantAction: (() -> Void)?
+
+    private func showPlaceholder(_ text: String, showGrant: Bool = false, grantHandler: (() -> Void)? = nil) {
         webViewController.webView.removeFromSuperview()
         nativeResultView.removeFromSuperview()
         aiResultView.removeFromSuperview()
@@ -208,15 +238,17 @@ final class SearchPanelController: NSObject {
         placeholderLabel.stringValue = text
         placeholderLabel.isHidden = false
         grantButton.isHidden = !showGrant
+        grantAction = grantHandler
     }
 
     private func hidePlaceholder() {
         placeholderLabel.isHidden = true
         grantButton.isHidden = true
+        grantAction = nil
     }
 
-    @objc private func grantScreenRecording() {
-        PermissionsService.shared.requestScreenRecording()
+    @objc private func handleGrant() {
+        grantAction?()
     }
 
     private func showWebContent(for provider: SearchProvider) {

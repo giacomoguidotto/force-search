@@ -15,10 +15,17 @@ extension Notification.Name {
 }
 
 final class OnboardingViewModel: ObservableObject {
-    @Published var currentStep: OnboardingStep = .welcome
+    @Published var currentStep: OnboardingStep {
+        didSet { UserDefaults.standard.set(currentStep.rawValue, forKey: "onboardingStep") }
+    }
 
     let permissions = PermissionsService.shared
     let settings = AppSettings.shared
+
+    init() {
+        let saved = UserDefaults.standard.integer(forKey: "onboardingStep")
+        currentStep = OnboardingStep(rawValue: saved) ?? .welcome
+    }
 
     func nextStep() {
         guard let next = OnboardingStep(rawValue: currentStep.rawValue + 1) else { return }
@@ -29,6 +36,7 @@ final class OnboardingViewModel: ObservableObject {
 
     func completeOnboarding() {
         settings.hasCompletedOnboarding = true
+        UserDefaults.standard.removeObject(forKey: "onboardingStep")
         permissions.stopPolling()
         NotificationCenter.default.post(name: .onboardingCompleted, object: nil)
     }

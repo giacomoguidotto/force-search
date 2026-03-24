@@ -65,10 +65,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     preferencesController?.show()
   }
 
-  func showOnboarding() {
-    onboardingController.show()
-  }
-
   func performSearch(at point: NSPoint?) {
     // If onboarding step 4 is active, dismiss it and proceed with search
     if !settings.hasCompletedOnboarding && onboardingController.isOnStepFour {
@@ -80,16 +76,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let position = point ?? NSEvent.mouseLocation
 
-    // Check accessibility permission
+    // Check accessibility permission — open panel with grant banner if missing
     permissions.checkAll()
     if !permissions.accessibilityGranted {
-      debugLog.log("Search", "Accessibility not granted", level: .warning)
+      debugLog.log("Search", "Accessibility not granted — showing grant panel", level: .warning)
       RippleOverlay.show(at: position, color: ScryTheme.Colors.error)
-      let now = Date()
-      if now.timeIntervalSince(lastPermissionToast) >= permissionToastCooldown {
-        lastPermissionToast = now
-        ToastOverlay.show("Accessibility permission required", at: position)
+      if searchPanelController == nil {
+        searchPanelController = SearchPanelController()
       }
+      searchPanelController?.showAccessibilityPrompt(at: position)
       return
     }
 
