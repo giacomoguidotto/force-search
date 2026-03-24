@@ -31,12 +31,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     _ = UpdaterService.shared
 
     if settings.hasCompletedOnboarding {
+      permissions.checkAllIncludingInputMonitoring()
       setupServices()
       observeSettings()
     } else {
       // Defer services until onboarding reaches step 4 (permissions granted)
       observeSettings()
       onboardingController.onServicesNeeded = { [weak self] in
+        self?.permissions.checkAllIncludingInputMonitoring()
         self?.setupServices()
       }
       onboardingController.show()

@@ -21,7 +21,11 @@ final class PermissionsService: ObservableObject {
     private var backgroundTimer: Timer?
 
     private init() {
-        checkAll()
+        // Check non-prompting permissions only at init.
+        // Skip checkInputMonitoring() — CGEvent.tapCreate() triggers the system dialog.
+        accessibilityGranted = checkAccessibility()
+        lookUpConflictDetected = checkLookUpConflict()
+        globeKeyConflict = checkGlobeKeyConflict()
 
         // Distributed notification: unreliable but free — use as a bonus signal.
         // Add a 200ms delay before checking (Hammerspoon pattern: TCC DB update
@@ -45,9 +49,15 @@ final class PermissionsService: ObservableObject {
 
     func checkAll() {
         accessibilityGranted = checkAccessibility()
-        inputMonitoringGranted = checkInputMonitoring()
         lookUpConflictDetected = checkLookUpConflict()
         globeKeyConflict = checkGlobeKeyConflict()
+    }
+
+    /// Full check including input monitoring — only call after onboarding,
+    /// because CGEvent.tapCreate() triggers the system accessibility dialog.
+    func checkAllIncludingInputMonitoring() {
+        checkAll()
+        inputMonitoringGranted = checkInputMonitoring()
     }
 
     /// Check screen recording separately — SCShareableContent triggers the
