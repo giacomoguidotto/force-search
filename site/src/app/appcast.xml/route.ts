@@ -34,9 +34,9 @@ export async function GET() {
   }
 
   // Extract EdDSA signature from release body if present
-  // CI appends: `<!-- sparkle-signature: edSignature=... length=... -->`
+  // CI appends: `<!-- sparkle-signature: sparkle:edSignature=SIG length=LEN -->`
   const sigMatch = release.body?.match(
-    /<!-- sparkle-signature: (.+?) -->/,
+    /sparkle:edSignature=(\S+)/,
   );
   const signatureAttr = sigMatch ? `sparkle:edSignature="${sigMatch[1]}"` : "";
 
