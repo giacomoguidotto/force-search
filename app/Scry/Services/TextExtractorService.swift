@@ -49,9 +49,6 @@ final class TextExtractorService {
         preGestureSelection = nil
         if savedSelection == nil {
             savedSelection = extractViaAccessibility()
-            if savedSelection == nil {
-                savedSelection = extractSelectionViaClipboard()
-            }
         }
         if let text = savedSelection, !text.isEmpty {
             debugLog.log("TextExtractor", "Got text via selection", level: .debug)
@@ -70,10 +67,9 @@ final class TextExtractorService {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
-        // Fallback: Screenshot + OCR (lazily request screen recording permission)
-        if !CGPreflightScreenCaptureAccess() {
-            CGRequestScreenCaptureAccess()
-            debugLog.log("TextExtractor", "Screen recording not granted — prompting", level: .info)
+        // Fallback: Screenshot + OCR (requires screen recording permission)
+        guard CGPreflightScreenCaptureAccess() else {
+            debugLog.log("TextExtractor", "Screen recording not granted — skipping OCR", level: .info)
             return nil
         }
 
@@ -111,56 +107,6 @@ final class TextExtractorService {
     private func captureScreenshot(at point: NSPoint) {
         let size = AppSettings.shared.screenshotRegionSize
         lastScreenshot = screenshotService.captureRegion(around: point, size: size)
-    }
-
-    // MARK: - Clipboard-based Selection (for browsers)
-
-    /// Simulates Cmd+C to capture the current selection via the clipboard.
-    /// Saves and restores the previous clipboard content. Returns the selected text.
-    private func extractSelectionViaClipboard() -> String? {
-        let pasteboard = NSPasteboard.general
-        let previousChangeCount = pasteboard.changeCount
-
-        // Save current clipboard contents
-        let savedItems = pasteboard.pasteboardItems?.compactMap { item -> (String, Data)? in
-            guard let type = item.types.first,
-                  let data = item.data(forType: type) else { return nil }
-            return (type.rawValue, data)
-        } ?? []
-
-        // Simulate Cmd+C
-        let source = CGEventSource(stateID: .hidSystemState)
-        // Virtual key 0x08 = 'c'
-        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true)
-        keyDown?.flags = .maskCommand
-        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
-        keyUp?.flags = .maskCommand
-        keyDown?.post(tap: .cghidEventTap)
-        keyUp?.post(tap: .cghidEventTap)
-
-        // Wait briefly for the app to process the copy command
-        usleep(50_000) // 50ms
-
-        // Check if clipboard changed (meaning something was copied)
-        var result: String?
-        if pasteboard.changeCount != previousChangeCount,
-           let text = pasteboard.string(forType: .string), !text.isEmpty {
-            result = text
-            debugLog.log("TextExtractor", "Got selection via clipboard (\(text.count) chars)", level: .debug)
-        }
-
-        // Restore previous clipboard contents
-        pasteboard.clearContents()
-        for (typeRaw, data) in savedItems {
-            pasteboard.setData(data, forType: NSPasteboard.PasteboardType(typeRaw))
-        }
-
-        return result
-    }
-
-    /// Called at mouse-down to snapshot selection before force-click auto-selects.
-    private func captureSelectionViaClipboard() {
-        preGestureSelection = extractSelectionViaClipboard()
     }
 
     // MARK: - Accessibility

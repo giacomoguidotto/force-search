@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import AppKit
 import Combine
 import SwiftUI
@@ -238,8 +239,6 @@ struct TriggersStepView: View {
         }
     }
 
-    // MARK: Force Click Card
-
     private var forceClickCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -283,8 +282,6 @@ struct TriggersStepView: View {
                 )
         )
     }
-
-    // MARK: Hotkey Card
 
     @State private var hotkeyEnabled: Bool = true
     @State private var savedHotkey: Hotkey = .modifierTap(.globe)
@@ -346,8 +343,6 @@ struct TriggersStepView: View {
         )
     }
 
-    // MARK: Conflict Banner
-
     private func conflictBanner(
         text: String,
         action: String,
@@ -381,40 +376,40 @@ struct PermissionsStepView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Spacer()
-
-            Image(systemName: permissions.accessibilityGranted ? "checkmark.shield.fill" : "lock.shield")
-                .font(.system(size: 56))
-                .foregroundColor(
-                    permissions.accessibilityGranted
-                        ? ScryTheme.Colors.accentColor
-                        : ScryTheme.Colors.textSecondaryColor
-                )
-                .animation(.spring(response: 0.4), value: permissions.accessibilityGranted)
-
-            Text("Accessibility Permission")
+            Text("Permissions")
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+                .padding(.top, 32)
 
-            Text("Scry needs Accessibility access to read selected\ntext and detect your trigger gestures.")
+            Text("Scry needs a couple of permissions to work.")
                 .font(.system(size: 14))
                 .foregroundColor(ScryTheme.Colors.textSecondaryColor)
-                .multilineTextAlignment(.center)
 
-            if permissions.accessibilityGranted {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(ScryTheme.Colors.accentColor)
-                    Text("Permission Granted")
-                        .foregroundColor(ScryTheme.Colors.accentColor)
-                        .fontWeight(.medium)
-                }
-                .transition(.scale.combined(with: .opacity))
-            } else {
-                OnboardingButton(title: "Grant Permission") {
-                    permissions.requestAccessibility()
-                }
+            VStack(spacing: 12) {
+                permissionRow(
+                    icon: "lock.shield",
+                    grantedIcon: "checkmark.shield.fill",
+                    title: "Accessibility",
+                    subtitle: "Read selected text and detect triggers",
+                    granted: permissions.accessibilityGranted,
+                    required: true,
+                    action: { permissions.requestAccessibility() }
+                )
+
+                permissionRow(
+                    icon: "eye.slash",
+                    grantedIcon: "eye",
+                    title: "Screen Recording",
+                    subtitle: "Detect text under cursor via OCR",
+                    granted: permissions.screenRecordingGranted,
+                    required: false,
+                    action: {
+                        permissions.requestScreenRecording()
+                        permissions.startPollingWithScreenRecording()
+                    }
+                )
             }
+            .padding(.horizontal, 32)
 
             Spacer()
 
@@ -426,13 +421,82 @@ struct PermissionsStepView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .padding(.horizontal, 48)
         .onAppear {
+            permissions.checkScreenRecording()
             permissions.startPolling()
         }
         .onDisappear {
             permissions.stopPolling()
         }
+    }
+
+    // swiftlint:disable:next function_parameter_count
+    private func permissionRow(
+        icon: String,
+        grantedIcon: String,
+        title: String,
+        subtitle: String,
+        granted: Bool,
+        required: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: granted ? grantedIcon : icon)
+                .font(.system(size: 24))
+                .foregroundColor(
+                    granted ? ScryTheme.Colors.accentColor : ScryTheme.Colors.textSecondaryColor
+                )
+                .frame(width: 36)
+                .animation(.spring(response: 0.4), value: granted)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(ScryTheme.Colors.textPrimaryColor)
+                    if required {
+                        Text("Required")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(ScryTheme.Colors.accentColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule().fill(ScryTheme.Colors.accentColor.opacity(0.15))
+                            )
+                    }
+                }
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundColor(ScryTheme.Colors.textSecondaryColor)
+            }
+
+            Spacer()
+
+            if granted {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(ScryTheme.Colors.accentColor)
+                    .transition(.scale.combined(with: .opacity))
+            } else {
+                Button("Grant") { action() }
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.black)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule().fill(ScryTheme.Colors.accentColor)
+                    )
+                    .buttonStyle(.plain)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08))
+                )
+        )
     }
 }
 

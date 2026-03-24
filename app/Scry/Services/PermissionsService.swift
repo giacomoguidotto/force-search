@@ -60,11 +60,11 @@ final class PermissionsService: ObservableObject {
         inputMonitoringGranted = checkInputMonitoring()
     }
 
-    /// Check screen recording separately — SCShareableContent triggers the
-    /// system permission prompt, so only call this when the user explicitly
-    /// requests screen recording or when it's actually needed.
+    /// Check screen recording using the cached preflight API (does NOT prompt).
+    /// Use this for initial/display checks. The SCShareableContent-based check
+    /// is only used after the user has explicitly pressed "Grant".
     func checkScreenRecording() {
-        checkScreenRecordingAsync()
+        screenRecordingGranted = CGPreflightScreenCaptureAccess()
     }
 
     /// Prompts for Accessibility access via the system dialog.
@@ -102,10 +102,24 @@ final class PermissionsService: ObservableObject {
     // MARK: - Polling
 
     /// Fast poll (0.3s) for onboarding/permissions UI — matches Rectangle's approach.
+    /// Screen recording is NOT polled here — SCShareableContent triggers the system
+    /// dialog on first call. Use checkScreenRecording() explicitly after user action.
     func startPolling() {
         stopPolling()
         let timer = Timer(timeInterval: 0.3, repeats: true) { [weak self] _ in
             self?.checkAll()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        pollTimer = timer
+    }
+
+    /// Poll including screen recording — only call after user has interacted with
+    /// the screen recording grant button (so the TCC entry already exists).
+    func startPollingWithScreenRecording() {
+        stopPolling()
+        let timer = Timer(timeInterval: 0.3, repeats: true) { [weak self] _ in
+            self?.checkAll()
+            self?.checkScreenRecordingAsync()
         }
         RunLoop.main.add(timer, forMode: .common)
         pollTimer = timer
